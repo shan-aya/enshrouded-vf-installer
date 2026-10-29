@@ -1,0 +1,78 @@
+VF ENSHROUDED — voix françaises
+================================
+
+Ce paquet ajoute des voix françaises à Enshrouded : les pages de journal et les répliques des personnages (PNJ) sont lues en français, avec des voix reproduites à partir des voix anglaises d'origine (même timbre, même ton). L'anglais d'origine n'est pas supprimé.
+
+Pour un usage privé entre amis uniquement. Ne pas diffuser. Il faut posséder le jeu.
+
+
+INSTALLER
+---------
+1. Fermez complètement Enshrouded (et assurez-vous qu'il n'est pas dans la barre des tâches).
+2. Lancez « VF_Enshrouded_Installateur.exe » (dans le dossier « installateur »). Ne déplacez pas les dossiers « emm » et « mod » : ils doivent rester à côté.
+3. L'installateur trouve le jeu tout seul. Sinon cliquez sur « Parcourir… » et choisissez le dossier qui contient enshrouded.exe (par exemple  C:\Program Files (x86)\Steam\steamapps\common\Enshrouded ).
+4. Cliquez sur « Installer la VF ». Comptez quelques minutes : environ 1 Go de voix à copier, puis le patch. Attendez le message « Installation terminée ».
+
+
+RÉGLER LE JEU (à faire une fois)
+--------------------------------
+1. Lancez Enshrouded.
+2. Menu Options → onglet JEU.
+3. « Langue » : Français (c'est le texte du jeu, déjà réglé si votre jeu est en français).
+4. « Langue du doublage » : choisissez « Français (VF) » (c'est le DERNIER choix de la liste).
+5. « Lire automatiquement les notes sur l'univers » : mettez « Toujours jouer » si vous voulez que les pages de journal soient lues sans appuyer sur un bouton (par défaut c'est « Ne jamais jouer »).
+6. Dans le journal, ouvrez une page et lancez la lecture : la voix française se lit.
+
+Remarques :
+- Le choix « Français (VF) » remplace l'ancien choix « Chinois » dans la liste. Les voix chinoises ne sont donc plus accessibles tant que la VF est installée ; les autres langues (Anglais, Allemand) ne changent pas.
+- Une réplique ou une interjection sans version française (cris, « Mmm… », etc.) reste en anglais : c'est normal.
+- Pour revenir à l'anglais : Langue du doublage → « Anglais (English) ». Rien à désinstaller.
+
+
+DÉSINSTALLER
+------------
+Fermez le jeu, lancez l'installateur et cliquez sur « Désinstaller ». Les fichiers d'origine sont restaurés et les fichiers ajoutés sont supprimés.
+
+
+APRÈS UNE MISE À JOUR DU JEU
+----------------------------
+Une mise à jour d'Enshrouded (Steam) défait la VF. Il suffit de relancer l'installateur et de cliquer sur « Installer la VF ».
+Si l'installateur signale que la sauvegarde est périmée, Steam doit d'abord remettre le jeu d'origine : clic droit sur Enshrouded dans Steam → Propriétés → Fichiers installés → « Vérifier l'intégrité des fichiers du jeu ». Puis relancez l'installateur.
+La VF a été validée sur la version actuelle du jeu au moment de la création de ce paquet ; une grosse mise à jour peut la rendre inutilisable en attendant une nouvelle version du paquet.
+
+
+EN CAS DE PROBLÈME
+------------------
+- Le jeu affiche « Votre fichier de paramètres est corrompu » : cliquez sur « Annuler » (pas sur « Réinitialiser »), puis prévenez-moi.
+- Le jeu ne démarre plus : Steam → Fichiers installés → « Vérifier l'intégrité des fichiers du jeu », puis réinstallez la VF si vous le souhaitez.
+- Rien n'est modifié en dehors du dossier du jeu (aucun réglage Windows, aucun fichier de sauvegarde de partie).
+
+
+OPTION : RÉPLIQUES DE PERSONNAGES (PNJ)
+---------------------------------------
+La voix française des personnages (environ 1 170 répliques) est un fichier SÉPARÉ : « VF Enshrouded — complément PNJ ». Le fichier principal contient les 525 pages de journal. Pour ajouter les PNJ : décompressez le complément dans le même dossier que ce paquet (fusion des dossiers, voir son LISEZMOI_PNJ.txt), puis relancez l'installateur : la case « Répliques de personnages (PNJ) » devient active (cochée par défaut). Décochée, seules les pages de journal sont installées. Pour changer d'avis, relancez l'installateur avec l'autre choix : il réinstalle proprement.
+
+
+SI VOTRE ANTIVIRUS BLOQUE L'INSTALLATEUR (FAUX POSITIF)
+-------------------------------------------------------
+Certains antivirus signalent à tort les petits programmes comme VF_Enshrouded_Installateur.exe (c'est fréquent avec les exécutables créés en Python). Il ne contient rien d'autre que ce qui est décrit ici. Deux solutions :
+- Utiliser l'installation manuelle : fermez le jeu, double-cliquez sur « installation_manuelle.bat » (dans le dossier principal), indiquez le dossier du jeu, et répondez à la question sur les PNJ. Elle fait exactement la même chose que l'installateur. Pour désinstaller : « desinstallation_manuelle.bat ».
+- Ou ajouter une exception pour le dossier du paquet dans votre antivirus.
+Vous pouvez aussi vérifier l'intégrité de l'archive avec le fichier .sha256.txt fourni.
+
+
+VOUS TESTEZ CETTE VERSION : QUE ME DIRE ?
+-----------------------------------------
+C'est une version de test. Ce qui m'aide le plus :
+- Le jeu démarre-t-il normalement après l'installation ? Les pages de journal et les personnages parlent-ils en français ?
+- Pour un défaut : le nom de la page de journal (ou le personnage et ce qu'il dit), et ce que vous entendez (mot mal prononcé, bruit, voix trop forte ou trop faible, coupure, silence, anglais à la place du français).
+- Si l'installateur affiche une erreur : une capture d'écran de sa fenêtre (la zone de texte du bas contient le détail).
+- Votre version du jeu : l'installateur l'affiche (« build … ») ; si elle diffère de celle indiquée plus haut, dites-le-moi avant de continuer.
+Vous pouvez désinstaller à tout moment (bouton « Désinstaller ») ; rien d'autre n'est modifié.
+
+
+CRÉDITS ET LICENCES
+-------------------
+- Voix générées avec XTTS-v2 (Coqui, licence CPML : usage non commercial).
+- Patch des fichiers du jeu : EML « emm.exe » (Brabb3l, licence GPL-3.0, code source : https://github.com/Brabb3l/kfc-parser), inclus tel quel dans le dossier « emm » avec le texte de sa licence (emm\LICENSE-GPL-3.0.txt).
+- Textes français : traduction officielle du jeu (Keen Games). Les voix sont dérivées des voix du jeu : projet de fan, à ne pas diffuser publiquement.

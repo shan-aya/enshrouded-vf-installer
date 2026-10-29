@@ -1,0 +1,6 @@
+﻿build/tclx/
+build/work/
+dist/
+__pycache__/
+*.pyc
+

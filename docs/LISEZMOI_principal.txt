@@ -1,0 +1,45 @@
+VF ENSHROUDED — voix françaises (VF) / French voice-over
+========================================================
+
+EN : French voice-over for Enshrouded (journal pages; NPC lines in the optional file). Needs the Enshrouded Mod Loader's command-line tool (emm.exe, from https://github.com/Brabb3l/kfc-parser/releases). Extract this archive into the game folder, then run:  emm.exe run -p -g "<game folder>"  with the game closed. In game: Options > GAME > Voice language > "Français (VF)" (it replaces the Chinese slot).
+
+FR : voici le détail.
+
+PRÉREQUIS
+---------
+- Enshrouded Mod Loader (EML, outil « emm.exe », par Brabb3l, licence GPL-3.0). Téléchargement : https://github.com/Brabb3l/kfc-parser/releases (dernière version) → section « Assets » → cliquez sur « emm.exe » (environ 21 Mo ; version 0.2.0 ou plus récente, compatible Enshrouded 1.0). Enregistrez-le où vous voulez (par exemple dans un dossier « EML » de votre Bureau) : il n'a pas besoin d'installation. Empreinte SHA-256 de la version 0.2.0 : b1133f6b8ea7000596cc7710901bd8307b48165b0e650c0487a611d90ea49305
+  Code source : https://github.com/Brabb3l/kfc-parser  — documentation : https://brabb3l.github.io/kfc-parser/
+- Version du jeu testée : build Steam 26082781 (version interne 1273043). Une mise à jour du jeu défait la VF : il suffit de refaire l'installation ci-dessous.
+- Environ 600 Mo libres (1,2 Go avec le fichier PNJ).
+
+INSTALLER
+---------
+1. Fermez complètement Enshrouded.
+2. Décompressez cette archive DANS le dossier du jeu (celui qui contient enshrouded.exe). Elle crée « mods\vf-enshrouded\ ».
+   (Optionnel : décompressez de la même façon le fichier « PNJ » : il ajoute la voix des personnages et REMPLACE mods\vf-enshrouded\src\mod.lua : acceptez le remplacement.)
+3. Ouvrez une invite de commandes dans le dossier où se trouve emm.exe et lancez :
+       emm.exe run -p -g "C:\...\Steam\steamapps\common\Enshrouded"
+   (remplacez le chemin par celui de votre jeu). Attendez la fin (1 à 2 minutes) : le message « Applied … patches » apparaît, avec une ligne « VF : … voix … 0 erreur(s) ».
+4. Lancez le jeu : Options → onglet JEU → « Langue du doublage » → « Français (VF) ».
+   Pour que les pages de journal se lisent seules : « Lire automatiquement les notes sur l'univers » → « Toujours jouer ».
+
+DÉJÀ INSTALLÉ ? (mise à jour, ajout du fichier PNJ)
+-------------------------------------------------
+Avant de relancer l'étape 3, restaurez d'abord le jeu d'origine :  emm.exe restore -g "<dossier du jeu>"  puis supprimez les fichiers « enshrouded_055.dat » et suivants s'ils existent. Si le jeu a été mis à jour depuis (la sauvegarde enshrouded.kfc.bak est alors périmée) : Steam → Propriétés → Fichiers installés → « Vérifier l'intégrité des fichiers du jeu ».
+
+DÉSINSTALLER
+------------
+Jeu fermé :  emm.exe restore -g "<dossier du jeu>" ; supprimez le dossier mods\vf-enshrouded et les fichiers enshrouded_055.dat et suivants. (Les fichiers d'origine du jeu ne sont jamais modifiés : seul l'index enshrouded.kfc l'est, et il est restauré à l'identique.)
+
+CE QUE FAIT LE MOD / LIMITES
+----------------------------
+- 525 pages de journal doublées en français ; les répliques des personnages (environ 1 170) sont dans le fichier optionnel.
+- Les voix sont générées par synthèse vocale (XTTS-v2) à partir des voix anglaises du jeu : même timbre, ton proche. Les interjections (« Ah », « Hmm »…), les cris et les répliques sans texte retrouvé restent en anglais.
+- L'option « Français (VF) » prend la place de « Chinois » dans la liste de la langue du doublage : les voix chinoises ne sont plus accessibles tant que le mod est installé. Anglais et allemand ne changent pas.
+- Rien n'est modifié en dehors du dossier du jeu (aucun réglage Windows, aucune sauvegarde de partie). Ne modifiez pas à la main user_settings.json.
+
+CRÉDITS ET LICENCES
+-------------------
+- Voix générées avec XTTS-v2 (Coqui, licence CPML : usage non commercial). Usage non commercial uniquement.
+- Patch : EML (Brabb3l, GPL-3.0, https://github.com/Brabb3l/kfc-parser). Textes français : traduction officielle du jeu (Keen Games).
+- Projet de fan, non affilié à Keen Games. Il faut posséder le jeu. Mod : Shan_ayA.
