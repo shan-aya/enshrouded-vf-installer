@@ -17,9 +17,18 @@ INSTALLER
 1. Fermez complètement Enshrouded.
 2. Décompressez cette archive DANS le dossier du jeu (celui qui contient enshrouded.exe). Elle crée « mods\vf-enshrouded\ ».
    (Optionnel : décompressez de la même façon le fichier « PNJ » : il ajoute la voix des personnages et REMPLACE mods\vf-enshrouded\src\mod.lua : acceptez le remplacement.)
-3. Ouvrez une invite de commandes dans le dossier où se trouve emm.exe et lancez :
-       emm.exe run -p -g "C:\...\Steam\steamapps\common\Enshrouded"
-   (remplacez le chemin par celui de votre jeu). Attendez la fin (1 à 2 minutes) : le message « Applied … patches » apparaît, avec une ligne « VF : … voix … 0 erreur(s) ».
+3. Appliquez le patch (une seule commande, à copier-coller) :
+   a) Trouvez le dossier du jeu : Steam → clic droit sur Enshrouded → Propriétés → Fichiers installés → « Parcourir… ». Dans l'explorateur, cliquez dans la barre d'adresse, faites Ctrl+C : vous avez copié le chemin du jeu.
+   b) Ouvrez le dossier où vous avez enregistré emm.exe. Cliquez dans sa barre d'adresse, tapez  powershell  puis Entrée : une fenêtre s'ouvre déjà placée dans ce dossier.
+   c) Tapez (ou collez) la commande suivante, en remplaçant LE_CHEMIN_DU_JEU par le chemin copié (Ctrl+V, guillemets conservés) :
+          .\emm.exe run -p -g "LE_CHEMIN_DU_JEU"
+      Exemple :  .\emm.exe run -p -g "C:\Program Files (x86)\Steam\steamapps\common\Enshrouded"
+   d) Attendez 1 à 2 minutes. Succès = ces deux lignes à la fin :
+          VF : 1273 voix pointées sur l'anglais par défaut, 525 pages et 0 répliques doublées, 0 erreur(s)
+          Applied … patches
+      (« 0 répliques doublées » est normal sans le fichier PNJ ; avec le PNJ : « 1170 répliques doublées »).
+   Si Windows affiche « Windows a protégé votre ordinateur » à l'ouverture de emm.exe : « Informations complémentaires » → « Exécuter quand même » (emm.exe est le programme officiel d'EML, téléchargé sur GitHub ; vous pouvez comparer son empreinte SHA-256 avec celle indiquée plus haut).
+   Problèmes courants : « jeu lancé » → fermez Enshrouded complètement (barre des tâches comprise) ; le dossier du jeu doit être celui qui contient enshrouded.exe ; les guillemets autour du chemin sont obligatoires s'il contient des espaces.
 4. Lancez le jeu : Options → onglet JEU → « Langue du doublage » → « Français (VF) ».
    Pour que les pages de journal se lisent seules : « Lire automatiquement les notes sur l'univers » → « Toujours jouer ».
 
