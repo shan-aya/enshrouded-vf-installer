@@ -1,4 +1,4 @@
-﻿ShroundInFrench — voix françaises (VF) / French voice-over
+ShroudInFrench — voix françaises (VF) / French voice-over
 ========================================================
 
 EN : French voice-over for Enshrouded (journal pages; NPC lines in the optional file). Needs the Enshrouded Mod Loader (EML) proxy DLL: download dbghelp.dll from https://github.com/Brabb3l/kfc-parser/releases (Assets), put it next to enshrouded.exe, extract this archive (and the optional NPC file) into the game folder, then just launch the game. In game: Options > GAME > Voice language > "Français (VF)" (it replaces the Chinese slot).
@@ -19,8 +19,8 @@ INSTALLER (méthode recommandée : sans ligne de commande)
    Empreinte SHA-256 de la version 0.2.0 : 038b7a1787026007a68c82a6adeb8e79c2e644f936d4cd00f8b0db206a2349fa
 3. Trouvez le dossier du jeu : Steam → clic droit sur Enshrouded → Propriétés → Fichiers installés → « Parcourir… ». C'est le dossier qui contient enshrouded.exe.
 4. Copiez « dbghelp.dll » dans ce dossier (à côté de enshrouded.exe).
-5. Décompressez cette archive dans ce même dossier : elle crée « mods\ShroundInFrench\ ».
-   (Optionnel : faites de même avec le fichier « PNJ » pour la voix des personnages : ses fichiers rejoignent mods\ShroundInFrench.)
+5. Décompressez cette archive dans ce même dossier : elle crée « mods\ShroudInFrench\ ».
+   (Optionnel : faites de même avec le fichier « PNJ » pour la voix des personnages : ses fichiers rejoignent mods\ShroudInFrench.)
 6. Lancez Enshrouded normalement (Steam). Au premier lancement, EML applique le patch tout seul (quelques secondes, un fichier « enshrouded_055.dat » d'environ 750 Mo est créé dans le dossier du jeu). Aucune autre action.
 7. Dans le jeu : Options → onglet JEU → « Langue du doublage » → « Français (VF) » (dernier choix de la liste).
    Pour que les pages de journal se lisent seules : « Lire automatiquement les notes sur l'univers » → « Toujours jouer ».
@@ -36,7 +36,7 @@ Si Windows affiche « Windows a protégé votre ordinateur » à l'ouverture de 
 
 DÉSINSTALLER
 ------------
-1. Fermez le jeu. Supprimez le dossier mods\ShroundInFrench (et dbghelp.dll si vous ne voulez plus d'EML).
+1. Fermez le jeu. Supprimez le dossier mods\ShroudInFrench (et dbghelp.dll si vous ne voulez plus d'EML).
 2. Pour retrouver exactement le jeu d'origine : Steam → clic droit sur Enshrouded → Propriétés → Fichiers installés → « Vérifier l'intégrité des fichiers du jeu » (Steam restaure l'index modifié). Vous pouvez ensuite supprimer « enshrouded_055.dat ».
    (Avec la méthode emm.exe : « emm.exe restore -g "<dossier du jeu>" » suffit.)
 Les fichiers d'origine des voix ne sont jamais modifiés : seul l'index enshrouded.kfc l'est.
@@ -48,7 +48,7 @@ Une mise à jour (Steam) remplace l'index du jeu. Avec la DLL, le patch est norm
 EN CAS DE PROBLÈME
 ------------------
 - Le jeu affiche « Votre fichier de paramètres est corrompu » : cliquez sur « Annuler » (pas sur « Réinitialiser »). Ne modifiez pas user_settings.json à la main.
-- Le jeu ne démarre plus : retirez dbghelp.dll (et le dossier mods\ShroundInFrench), puis Steam → « Vérifier l'intégrité des fichiers du jeu ».
+- Le jeu ne démarre plus : retirez dbghelp.dll (et le dossier mods\ShroudInFrench), puis Steam → « Vérifier l'intégrité des fichiers du jeu ».
 - La voix reste en anglais : « Langue du doublage » doit être sur « Français (VF) » ; regardez le fichier logs\*.eml.log (ligne « VF : … »).
 - Rien n'est modifié en dehors du dossier du jeu (aucun réglage Windows, aucune sauvegarde de partie).
 
@@ -63,4 +63,3 @@ CRÉDITS ET LICENCES
 - Voix générées avec XTTS-v2 (Coqui, licence CPML : usage non commercial). Usage non commercial uniquement.
 - Patch : EML (Brabb3l, GPL-3.0, https://github.com/Brabb3l/kfc-parser). Textes français : traduction officielle du jeu (Keen Games).
 - Projet de fan, non affilié à Keen Games. Il faut posséder le jeu. Mod : Shan_ayA.
-

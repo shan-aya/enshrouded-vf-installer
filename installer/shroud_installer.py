@@ -1,7 +1,7 @@
 ﻿"""Installateur LÉGER de la VF d'Enshrouded (voix françaises, emplacement « Français (VF) » du menu Langue du doublage).
 Interface française. Ne contient AUCUN fichier audio ni emm.exe : il utilise les archives téléchargées sur Nexus Mods
 (fichier principal = pages de journal ; complément optionnel = répliques des personnages) et l'outil emm.exe d'EML (GitHub).
-Il trouve le jeu (Steam), les archives et emm.exe, décompresse le mod dans <jeu>\\mods\\ShroundInFrench, applique le patch
+Il trouve le jeu (Steam), les archives et emm.exe, décompresse le mod dans <jeu>\\mods\\ShroudInFrench, applique le patch
 (emm.exe run -p) ou restaure l'original. Aucun accès réseau ; rien n'est modifié hors du dossier du jeu."""
 import json, os, re, shutil, subprocess, sys, threading, time, webbrowser, zipfile
 import tkinter as tk
@@ -9,7 +9,7 @@ from tkinter import filedialog, messagebox, scrolledtext, ttk
 
 VERSION = "2.0"
 APPID = "1203620"
-MOD_NAME = "ShroundInFrench"
+MOD_NAME = "ShroudInFrench"
 MOD_PREFIX = f"mods/{MOD_NAME}/"
 TESTED_BUILD = "26082781"   # build Steam (appmanifest) sur lequel la VF a été validée (version interne du jeu : 1273043)
 EML_URL = "https://github.com/Brabb3l/kfc-parser/releases"
@@ -30,7 +30,7 @@ IMPORTANT
 - Si l'installateur dit que la sauvegarde est périmée : Steam → clic droit sur Enshrouded → Propriétés → Fichiers installés → « Vérifier l'intégrité des fichiers du jeu », puis relancez l'installateur.
 
 CE QU'IL FAUT TÉLÉCHARGER
-- Sur Nexus Mods : le fichier principal « ShroundInFrench » (pages de journal) et, si vous voulez la voix des personnages, le fichier optionnel « PNJ ». Laissez les .zip tels quels dans « Téléchargements » : l'installateur les trouve seul (sinon « Parcourir… »).
+- Sur Nexus Mods : le fichier principal « ShroudInFrench » (pages de journal) et, si vous voulez la voix des personnages, le fichier optionnel « PNJ ». Laissez les .zip tels quels dans « Téléchargements » : l'installateur les trouve seul (sinon « Parcourir… »).
 - emm.exe (outil d'EML, par Brabb3l) : bouton « Où le télécharger ? » → GitHub → dernière version → « Assets » → emm.exe.
 """
 
@@ -110,7 +110,7 @@ def search_dirs(game=None):
 
 
 def zip_kind(path):
-    """'main' (contient mods/ShroundInFrench/mod.json), 'pnj' (fichiers n*.fqoa seuls) ou None. Lit seulement l'index du zip (rapide)."""
+    """'main' (contient mods/ShroudInFrench/mod.json), 'pnj' (fichiers n*.fqoa seuls) ou None. Lit seulement l'index du zip (rapide)."""
     try:
         with zipfile.ZipFile(path) as z:
             names = z.namelist()
@@ -155,7 +155,7 @@ def find_emm(game=None):
 
 
 def safe_members(z):
-    """Entrées du zip autorisées : uniquement sous mods/ShroundInFrench/, sans « .. » ni chemin absolu."""
+    """Entrées du zip autorisées : uniquement sous mods/ShroudInFrench/, sans « .. » ni chemin absolu."""
     out = []
     for i in z.infolist():
         n = i.filename.replace("\\", "/")
@@ -169,7 +169,7 @@ def safe_members(z):
 class App(tk.Tk):
     def __init__(self):
         super().__init__()
-        self.title(f"ShroundInFrench — installateur {VERSION}")
+        self.title(f"ShroudInFrench — installateur {VERSION}")
         self.geometry("780x880"); self.minsize(700, 760)
         self.game = None; self.busy = False; self.opt_pnj = True
         try:   # bandeau (illustration + logo Shan_ayA) embarqué dans l'exe (assets\entete.png)
@@ -188,7 +188,7 @@ class App(tk.Tk):
         ttk.Button(box, text="Où le télécharger ?", command=lambda: webbrowser.open(EML_URL)).grid(row=1, column=3, padx=(6, 0))
         ttk.Label(box, text="Fichier principal :").grid(row=2, column=0, sticky="w", pady=2)
         ttk.Entry(box, textvariable=self.var_main).grid(row=2, column=1, sticky="ew", padx=6)
-        ttk.Button(box, text="Parcourir…", command=lambda: self.browse_file(self.var_main, "Archive principale « ShroundInFrench » (.zip)", [("Archives", "*.zip")])).grid(row=2, column=2)
+        ttk.Button(box, text="Parcourir…", command=lambda: self.browse_file(self.var_main, "Archive principale « ShroudInFrench » (.zip)", [("Archives", "*.zip")])).grid(row=2, column=2)
         ttk.Label(box, text="Complément PNJ :").grid(row=3, column=0, sticky="w", pady=2)
         ttk.Entry(box, textvariable=self.var_pnjzip).grid(row=3, column=1, sticky="ew", padx=6)
         ttk.Button(box, text="Parcourir…", command=lambda: self.browse_file(self.var_pnjzip, "Archive optionnelle « PNJ » (.zip)", [("Archives", "*.zip")])).grid(row=3, column=2)
@@ -264,9 +264,9 @@ class App(tk.Tk):
     def run(self, fn):
         if self.busy: return
         self.refresh()
-        if not self.game: messagebox.showwarning("ShroundInFrench", "Choisissez d'abord le dossier du jeu."); return
-        if game_running(): messagebox.showwarning("ShroundInFrench", "Enshrouded est lancé. Fermez le jeu complètement puis réessayez."); return
-        if not os.path.isfile(self.var_emm.get().strip()): messagebox.showerror("ShroundInFrench", "emm.exe (EML) est introuvable.\nUtilisez « Où le télécharger ? », puis « Parcourir… »."); return
+        if not self.game: messagebox.showwarning("ShroudInFrench", "Choisissez d'abord le dossier du jeu."); return
+        if game_running(): messagebox.showwarning("ShroudInFrench", "Enshrouded est lancé. Fermez le jeu complètement puis réessayez."); return
+        if not os.path.isfile(self.var_emm.get().strip()): messagebox.showerror("ShroudInFrench", "emm.exe (EML) est introuvable.\nUtilisez « Où le télécharger ? », puis « Parcourir… »."); return
         self.opt_pnj = bool(self.var_pnj.get())
         self.emm_path = self.var_emm.get().strip(); self.zip_main = self.var_main.get().strip(); self.zip_pnj = self.var_pnjzip.get().strip()
         self.busy = True; self.btn_install.state(["disabled"]); self.btn_uninstall.state(["disabled"])
@@ -300,7 +300,7 @@ class App(tk.Tk):
         have_main_zip, have_pnj_zip = os.path.isfile(main), os.path.isfile(pnjz)
         mod_dst = self.mod_dir(game); pre_existing = os.path.isfile(os.path.join(mod_dst, "mod.json")) and not self.installed(game)
         if not have_main_zip and not pre_existing:
-            self.say("Fichier principal introuvable : téléchargez « ShroundInFrench » sur Nexus Mods (ou choisissez le .zip avec « Parcourir… »)."); return
+            self.say("Fichier principal introuvable : téléchargez « ShroudInFrench » sur Nexus Mods (ou choisissez le .zip avec « Parcourir… »)."); return
         if have_main_zip and zip_kind(main) != "main": self.say("Le fichier choisi comme « principal » n'est pas l'archive principale de la VF."); return
         if have_pnj_zip and zip_kind(pnjz) != "pnj": self.say("Le fichier choisi comme « PNJ » n'est pas l'archive des répliques de personnages."); return
         use_pnj = self.opt_pnj

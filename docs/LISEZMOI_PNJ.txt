@@ -1,16 +1,15 @@
-﻿ShroundInFrench — fichier optionnel « répliques des personnages (PNJ) »
+﻿ShroudInFrench — fichier optionnel « répliques des personnages (PNJ) »
 =====================================================================
 
-Ce fichier AJOUTE la voix française des personnages (1170 répliques, 600 voix) au fichier principal « ShroundInFrench » (pages de journal). Il faut le fichier principal. Il ne contient que des fichiers audio : aucun script.
+Ce fichier AJOUTE la voix française des personnages (1170 répliques, 600 voix) au fichier principal « ShroudInFrench » (pages de journal). Il faut le fichier principal. Il ne contient que des fichiers audio : aucun script.
 
 INSTALLER
 ---------
-1. Jeu fermé, décompressez cette archive dans le dossier du jeu (celui qui contient enshrouded.exe), comme le fichier principal : les fichiers « n….fqoa » rejoignent « mods\ShroundInFrench ».
+1. Jeu fermé, décompressez cette archive dans le dossier du jeu (celui qui contient enshrouded.exe), comme le fichier principal : les fichiers « n….fqoa » rejoignent « mods\ShroudInFrench ».
 2. Si la VF était déjà installée : emm.exe restore -g "<dossier du jeu>" d'abord (voir le LISEZMOI du fichier principal).
 3. Lancez le patch :  emm.exe run -p -g "<dossier du jeu>"  — vous devez lire « 1170 répliques doublées ».
    (Avec l'installateur graphique : cochez « Répliques de personnages (PNJ) ».)
 
 SANS LES PNJ
 ------------
-Supprimez les fichiers « n….fqoa » de mods\ShroundInFrench (ou ne les décompressez pas) et relancez le patch : le même script du fichier principal ignore les fichiers PNJ absents (« répliques non installées »).
-
+Supprimez les fichiers « n….fqoa » de mods\ShroudInFrench (ou ne les décompressez pas) et relancez le patch : le même script du fichier principal ignore les fichiers PNJ absents (« répliques non installées »).
