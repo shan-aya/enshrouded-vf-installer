@@ -1,20 +1,24 @@
-# enshrouded-vf-installer
+﻿# enshrouded-vf-installer
 
-**FR** — Code source de l'installateur (et des scripts d'installation manuelle) du mod **VF Enshrouded**, des voix françaises pour *Enshrouded* (pages de journal, et répliques des personnages en fichier optionnel).
-**EN** — Source code of the installer (and manual install scripts) for **VF Enshrouded**, a French voice-over mod for *Enshrouded*.
+**FR** — Code source de l'installateur du mod **ShroundInFrench**, des voix françaises pour *Enshrouded* (525 pages de journal en fichier principal, 1 170 répliques de personnages en fichier optionnel).
+**EN** — Source code of the installer for **ShroundInFrench**, a French voice-over mod for *Enshrouded* (525 journal pages as the main file, 1,170 NPC lines as an optional file).
 
-Ce dépôt **ne contient ni les fichiers audio du mod, ni `emm.exe`**. Il sert à vérifier ce que fait l'installateur et à le recompiler. / This repository contains **neither the mod's audio files nor `emm.exe`**; it lets anyone review and rebuild the installer.
+Ce dépôt **ne contient ni les fichiers audio du mod, ni `emm.exe`** : l'installateur utilise les archives téléchargées sur Nexus Mods et l'outil `emm.exe` d'EML. Il sert à vérifier ce que fait l'installateur et à le recompiler. / This repository contains **neither the mod's audio files nor `emm.exe`**; the installer uses the archives downloaded from Nexus Mods and EML's `emm.exe`.
 
 ## Ce que fait l'installateur / What it does
 
-Fenêtre Tk (Python, interface en français). Tout est dans [`installer/vf_installer.py`](installer/vf_installer.py) (~250 lignes) :
+Fenêtre Tk (Python, interface en français). Tout est dans [`installer/shround_installer.py`](installer/shround_installer.py) (~330 lignes) :
 
 1. **Détecte le jeu** : registre Steam + `libraryfolders.vdf` + `appmanifest_1203620.acf` (build Steam affiché). Choix manuel possible.
-2. **Installer** : copie `mod\vf-enshrouded\` (script Lua + fichiers audio `*.fqoa`) dans `<jeu>\mods\vf-enshrouded\`, puis lance **`emm.exe run -p -g <jeu>`** ([EML](https://github.com/Brabb3l/kfc-parser), GPL-3.0) qui applique le patch (jeu fermé). Écrit `<jeu>\vf_install.json`.
-3. **Désinstaller** : `emm.exe restore -g <jeu>` (restaure `enshrouded.kfc` depuis `enshrouded.kfc.bak`), supprime `mods\vf-enshrouded` et les fichiers `enshrouded_055.dat`+ ajoutés par le patch. Refuse de restaurer si le jeu a été mis à jour depuis (sauvegarde périmée).
-4. **Option PNJ** : si les fichiers `n*.fqoa` (fichier optionnel) sont présents, une case permet de les inclure ou non.
+2. **Trouve les archives et `emm.exe`** dans Téléchargements, Bureau, le dossier de l'installateur et celui du jeu ; les archives sont reconnues **par leur contenu** (pas par leur nom) : « principale » = contient `mods/ShroundInFrench/mod.json`, « PNJ » = fichiers `n*.fqoa` seuls.
+3. **Installer** : décompresse **uniquement** les entrées sous `mods/ShroundInFrench/` (sans `..` ni chemin absolu) dans le dossier du jeu, puis lance **`emm.exe run -p -g <jeu>`** ([EML](https://github.com/Brabb3l/kfc-parser), GPL-3.0) qui applique le patch (jeu fermé). Écrit `<jeu>\vf_install.json`. Une case permet d'inclure ou non les répliques de personnages.
+4. **Désinstaller** : `emm.exe restore -g <jeu>` (restaure `enshrouded.kfc` depuis `enshrouded.kfc.bak`), supprime `mods\ShroundInFrench` et les fichiers `enshrouded_055.dat`+ ajoutés par le patch. Refuse de restaurer si le jeu a été mis à jour depuis (sauvegarde périmée) et renvoie vers « Vérifier l'intégrité des fichiers du jeu » dans Steam.
 
-**Ce qu'il ne fait pas** : aucun accès réseau, aucune télémétrie, aucun droit administrateur, aucune modification hors du dossier du jeu (ni registre, ni réglages Windows, ni sauvegardes de parties). Le seul lien externe : le bouton « Payez-moi un café » ouvre `https://buymeacoffee.com/shan_aya` dans le navigateur, sur clic. Il lance deux programmes : `tasklist` (pour vérifier que le jeu est fermé) et `emm.exe`.
+**Ce qu'il ne fait pas** : aucun accès réseau, aucune télémétrie, aucun droit administrateur, aucune modification hors du dossier du jeu (ni registre, ni réglages Windows, ni sauvegardes de parties). Le seul lien externe : les boutons « Où le télécharger ? » et « Payez-moi un café » ouvrent une page dans le navigateur, sur clic. Il lance deux programmes : `tasklist` (pour vérifier que le jeu est fermé) et `emm.exe`.
+
+## Installation sans l'installateur / Without the installer
+
+Fermez le jeu, décompressez les archives du mod dans le dossier du jeu (elles créent `mods\ShroundInFrench\`), puis `emm.exe run -p -g "<dossier du jeu>"` (ou copiez `dbghelp.dll` d'EML à côté de `enshrouded.exe` et lancez le jeu). Désinstallation : `emm.exe restore -g "<dossier du jeu>"` et suppression de `mods\ShroundInFrench`. Détail : [`docs/LISEZMOI_principal.txt`](docs/LISEZMOI_principal.txt).
 
 ## Compiler / Build
 
@@ -22,34 +26,20 @@ Prérequis : Windows x64, **Python 3.14** (avec tkinter), `pip install pyinstall
 
 ```powershell
 .\build_installer.ps1 -Python "C:\Program Files\Python314\python.exe"
-# -> dist\VF_Enshrouded_Installateur\VF_Enshrouded_Installateur.exe  (mode onedir)
+# -> dist\ShroundInFrench_Installateur\ShroundInFrench_Installateur.exe  (mode onedir)
 ```
 
 Le script fait deux choses :
 1. `build\extract_tcl_tk.py` extrait les bibliothèques **Tcl/Tk 9** (embarquées en `zipfs` dans la DLL de Python 3.14) vers `build\tclx\` — le crochet de PyInstaller 6.20 ne les trouve pas seul avec Tcl/Tk 9 ;
-2. PyInstaller compile avec [`build\VF_Enshrouded_Installateur.spec`](build/VF_Enshrouded_Installateur.spec), qui embarque ces bibliothèques (`_tcl_data`, `_tk_data`) et l'image d'en-tête (`installer/assets/entete.png`).
+2. PyInstaller compile avec [`build\ShroundInFrench_Installateur.spec`](build/ShroundInFrench_Installateur.spec), qui embarque ces bibliothèques (`_tcl_data`, `_tk_data`) et l'image d'en-tête (`installer/assets/entete.png`).
 
-> Les exécutables PyInstaller sont parfois signalés à tort par des antivirus (faux positifs) ; le dossier `_internal` contient notamment `base_library.zip` (bibliothèque standard Python). Si besoin, utilisez les scripts manuels ci-dessous, qui font la même chose sans exécutable.
-
-## Disposition attendue à côté de l'exécutable / Package layout
-
-```
-VF_Enshrouded\
-  installateur\VF_Enshrouded_Installateur.exe   (+ _internal\)
-  emm\emm.exe                                   <- https://github.com/Brabb3l/kfc-parser/releases  (v0.2.0 : SHA-256 b1133f6b8ea7000596cc7710901bd8307b48165b0e650c0487a611d90ea49305)
-  mod\vf-enshrouded\{mod.json, src\mod.lua, j*.fqoa [, n*.fqoa]}
-  LISEZMOI.txt
-```
-
-## Scripts manuels / Manual scripts
-
-[`scripts/installation_manuelle.bat`](scripts/installation_manuelle.bat) et [`scripts/desinstallation_manuelle.bat`](scripts/desinstallation_manuelle.bat) : mêmes opérations que l'installateur, en invite de commandes (copie robocopy + `emm.exe run -p` / `emm.exe restore`), sans exécutable compilé.
+> Les exécutables PyInstaller sont parfois signalés à tort par des antivirus (faux positifs) ; le dossier `_internal` contient notamment `base_library.zip` (bibliothèque standard Python). Si besoin, installez sans l'installateur (voir ci-dessus).
 
 ## Documentation
 
 - [`docs/LISEZMOI_principal.txt`](docs/LISEZMOI_principal.txt) — notice du fichier principal (installation avec EML, désinstallation, limites).
 - [`docs/LISEZMOI_PNJ.txt`](docs/LISEZMOI_PNJ.txt) — notice du fichier optionnel « répliques des personnages ».
-- [`docs/LISEZMOI_installateur.txt`](docs/LISEZMOI_installateur.txt) — notice de la version avec installateur.
+- [`docs/banniere_shroundinfrench_1300x372.png`](docs/banniere_shroundinfrench_1300x372.png) — bannière du mod.
 
 ## Licences
 
