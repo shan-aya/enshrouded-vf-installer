@@ -39,6 +39,7 @@ Le script fait deux choses :
 
 - [`docs/LISEZMOI_principal.txt`](docs/LISEZMOI_principal.txt) — notice du fichier principal (installation avec EML, désinstallation, limites).
 - [`docs/LISEZMOI_PNJ.txt`](docs/LISEZMOI_PNJ.txt) — notice du fichier optionnel « répliques des personnages ».
+- [`docs/shroudinfrench_presentation.mp4`](docs/shroudinfrench_presentation.mp4) — vidéo de présentation (33 s) : Forgeron, Barbier et Alden en VF puis en VO.
 - [`docs/banniere_shroudinfrench_1300x372.png`](docs/banniere_shroudinfrench_1300x372.png) — bannière du mod.
 
 ## Licences
@@ -46,5 +47,6 @@ Le script fait deux choses :
 - Code de ce dépôt : **MIT** ([LICENSE](LICENSE)).
 - Les voix du mod (non incluses ici) sont générées avec XTTS-v2 (Coqui, licence **CPML** : usage non commercial). Projet de fan, non affilié à Keen Games ; il faut posséder le jeu.
 - EML / `emm.exe` : Brabb3l, **GPL-3.0** — non inclus ici.
+
 
 
