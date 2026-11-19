@@ -1,4 +1,4 @@
-﻿# enshrouded-vf-installer
+# enshrouded-vf-installer
 
 **FR** — Code source de l'installateur du mod **ShroudInFrench**, des voix françaises pour *Enshrouded* (525 pages de journal en fichier principal, 1 170 répliques de personnages en fichier optionnel).
 **EN** — Source code of the installer for **ShroudInFrench**, a French voice-over mod for *Enshrouded* (525 journal pages as the main file, 1,170 NPC lines as an optional file).
@@ -7,18 +7,18 @@ Ce dépôt **ne contient ni les fichiers audio du mod, ni `emm.exe`** : l'instal
 
 ## Ce que fait l'installateur / What it does
 
-Fenêtre Tk (Python, interface en français). Tout est dans [`installer/shroud_installer.py`](installer/shroud_installer.py) (~330 lignes) :
+Fenêtre Tk (Python, interface en français). Tout est dans [`installer/shroud_installer.py`](installer/shroud_installer.py) :
 
 1. **Détecte le jeu** : registre Steam + `libraryfolders.vdf` + `appmanifest_1203620.acf` (build Steam affiché). Choix manuel possible.
 2. **Trouve les archives et `emm.exe`** dans Téléchargements, Bureau, le dossier de l'installateur et celui du jeu ; les archives sont reconnues **par leur contenu** (pas par leur nom) : « principale » = contient `mods/ShroudInFrench/mod.json`, « PNJ » = fichiers `n*.fqoa` seuls.
-3. **Installer** : décompresse **uniquement** les entrées sous `mods/ShroudInFrench/` (sans `..` ni chemin absolu) dans le dossier du jeu, puis lance **`emm.exe run -p -g <jeu>`** ([EML](https://github.com/Brabb3l/kfc-parser), GPL-3.0) qui applique le patch (jeu fermé). Écrit `<jeu>\vf_install.json`. Une case permet d'inclure ou non les répliques de personnages.
-4. **Désinstaller** : `emm.exe restore -g <jeu>` (restaure `enshrouded.kfc` depuis `enshrouded.kfc.bak`), supprime `mods\ShroudInFrench` et les fichiers `enshrouded_055.dat`+ ajoutés par le patch. Refuse de restaurer si le jeu a été mis à jour depuis (sauvegarde périmée) et renvoie vers « Vérifier l'intégrité des fichiers du jeu » dans Steam.
+3. **Installer / mettre à jour** : décompresse **uniquement** les entrées sous `mods/ShroudInFrench/` (sans `..` ni chemin absolu), puis lance **`emm.exe run -p -f -g <jeu>`** ([EML](https://github.com/Brabb3l/kfc-parser), GPL-3.0) pour reconstruire le patch avec tous les mods EML présents (jeu fermé). Une case permet d’inclure ou non les répliques de personnages.
+4. **Désinstaller** : retire uniquement `mods\ShroudInFrench`. S’il reste d’autres mods EML, force leur réapplication avec `emm.exe run -p -f -g <jeu>` et conserve leurs fichiers de données ainsi que le cache. Sans autre mod EML, restaure l’original avec `emm.exe restore -g <jeu>` et nettoie les fichiers appartenant à une installation récente et identifiée. Refuse toute opération si la sauvegarde d’origine est absente ou périmée.
 
 **Ce qu'il ne fait pas** : aucun accès réseau, aucune télémétrie, aucun droit administrateur, aucune modification hors du dossier du jeu (ni registre, ni réglages Windows, ni sauvegardes de parties). Le seul lien externe : les boutons « Où le télécharger ? » et « Payez-moi un café » ouvrent une page dans le navigateur, sur clic. Il lance deux programmes : `tasklist` (pour vérifier que le jeu est fermé) et `emm.exe`.
 
 ## Installation sans l'installateur / Without the installer
 
-Fermez le jeu, décompressez les archives du mod dans le dossier du jeu (elles créent `mods\ShroudInFrench\`), puis `emm.exe run -p -g "<dossier du jeu>"` (ou copiez `dbghelp.dll` d'EML à côté de `enshrouded.exe` et lancez le jeu). Désinstallation : `emm.exe restore -g "<dossier du jeu>"` et suppression de `mods\ShroudInFrench`. Détail : [`docs/LISEZMOI_principal.txt`](docs/LISEZMOI_principal.txt).
+Fermez le jeu, décompressez les archives du mod dans le dossier du jeu (elles créent `mods\ShroudInFrench\`), puis `emm.exe run -p -f -g "<dossier du jeu>"` (ou copiez `dbghelp.dll` d'EML à côté de `enshrouded.exe` et lancez le jeu). Désinstallation : sans autre mod EML, lancez `emm.exe restore -g "<dossier du jeu>"` puis supprimez `mods\ShroudInFrench`. Si d'autres mods EML restent, supprimez seulement `mods\ShroudInFrench`, puis lancez `emm.exe run -p -f -g "<dossier du jeu>"` pour reconstruire leur patch. Détail : [`docs/LISEZMOI_principal.txt`](docs/LISEZMOI_principal.txt).
 
 ## Compiler / Build
 

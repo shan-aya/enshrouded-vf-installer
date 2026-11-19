@@ -1,17 +1,20 @@
-﻿"""Installateur LÉGER de la VF d'Enshrouded (voix françaises, emplacement « Français (VF) » du menu Langue du doublage).
+"""Installateur LÉGER de la VF d'Enshrouded (voix françaises, emplacement « Français (VF) » du menu Langue du doublage).
 Interface française. Ne contient AUCUN fichier audio ni emm.exe : il utilise les archives téléchargées sur Nexus Mods
 (fichier principal = pages de journal ; complément optionnel = répliques des personnages) et l'outil emm.exe d'EML (GitHub).
 Il trouve le jeu (Steam), les archives et emm.exe, décompresse le mod dans <jeu>\\mods\\ShroudInFrench, applique le patch
 (emm.exe run -p) ou restaure l'original. Aucun accès réseau ; rien n'est modifié hors du dossier du jeu."""
-import json, os, re, shutil, subprocess, sys, threading, time, webbrowser, zipfile
+# safe-modify v4 — 2026-11-19 : mise à jour/désinstallation en reconstruisant le patch EML avec les autres mods.
+# v3 — 2026-11-19 : refuse aussi une mise à jour si la désinstallation préalable est bloquée.
+# v2 — 2026-11-19 : restauration contrôlée, retrait des caches/données EML et garde-fou pour les autres mods.
+import filecmp, json, os, re, shutil, subprocess, sys, threading, time, webbrowser, zipfile
 import tkinter as tk
 from tkinter import filedialog, messagebox, scrolledtext, ttk
 
-VERSION = "2.0"
+VERSION = "2.2.2"
 APPID = "1203620"
 MOD_NAME = "ShroudInFrench"
 MOD_PREFIX = f"mods/{MOD_NAME}/"
-TESTED_BUILD = "26082781"   # build Steam (appmanifest) sur lequel la VF a été validée (version interne du jeu : 1273043)
+TESTED_BUILD = "26430625"   # build Steam (appmanifest) sur lequel la VF a été validée (version interne du jeu : 1273043)
 EML_URL = "https://github.com/Brabb3l/kfc-parser/releases"
 COFFEE_URL = "https://buymeacoffee.com/shan_aya"
 BASE = os.path.dirname(os.path.abspath(sys.executable if getattr(sys, "frozen", False) else __file__))
@@ -245,6 +248,21 @@ class App(tk.Tk):
     def installed(self, game): return os.path.isfile(self.state_path(game))
     def mod_dir(self, game): return os.path.join(game, "mods", MOD_NAME)
 
+    def other_eml_mods(self, game):
+        """Mods EML installés, hors VF. Les dossiers sans mod.json ne sont pas des mods EML."""
+        root = os.path.join(game, "mods")
+        try:
+            return [n for n in os.listdir(root)
+                    if n.casefold() != MOD_NAME.casefold()
+                    and os.path.isfile(os.path.join(root, n, "mod.json"))]
+        except OSError:
+            return []
+
+    def patch_eml(self, game):
+        rc, out = self.emm(["run", "-p", "-f", "-g", game])
+        applied = re.search(r"Applied (\d+) patches", out)
+        return rc == 0 and applied is not None, out, (int(applied.group(1)) if applied else None)
+
     def refresh(self):
         game = self.var_game.get().strip()
         if not is_game_dir(game):
@@ -312,60 +330,170 @@ class App(tk.Tk):
         need = total * 2 + 900 * 1024 * 1024
         free = shutil.disk_usage(game).free
         if free < need: self.say(f"Espace disque insuffisant : {free // 2**20} Mo libres, {need // 2**20} Mo nécessaires."); return
-        if self.installed(game):
-            self.say("Une installation existe déjà : retrait avant de réinstaller…"); self.do_uninstall(game, quiet=True)
+        # Une mise à jour ne désinstalle plus globalement EML : on remplace seulement
+        # le dossier VF puis EML reconstruit le patch commun depuis sa sauvegarde d'origine.
+        old_state = {}
+        old_mod_backup = None
+        was_installed = self.installed(game)
+        backup_kfc = os.path.join(game, "enshrouded.kfc.bak")
+        game_exe = os.path.join(game, "enshrouded.exe")
+        if was_installed:
+            try: old_state = json.load(open(self.state_path(game), encoding="utf-8"))
+            except Exception: old_state = {}
+            if not os.path.isfile(backup_kfc) or os.path.getmtime(game_exe) > os.path.getmtime(backup_kfc) + 1:
+                self.say("Mise à jour arrêtée : la sauvegarde EML est absente ou périmée. Vérifiez les fichiers du jeu dans Steam avant de réessayer.")
+                return
+            if os.path.isdir(mod_dst):
+                old_mod_backup = os.path.join(game, f".ShroudInFrench_update_{int(time.time())}")
+                if os.path.exists(old_mod_backup):
+                    self.say("Mise à jour arrêtée : un dossier de sauvegarde temporaire existe déjà.")
+                    return
+                shutil.move(mod_dst, old_mod_backup)
         before = dat_files(game)
-        if zips:
-            if os.path.isdir(mod_dst): shutil.rmtree(mod_dst)
-            self.say(f"Décompression des fichiers du mod dans le jeu ({total // 2**20} Mo)…"); self.set_progress(0, max(total, 1)); done = 0
-            for zp in zips: done = self.extract(zp, game, done, total)
-        if not use_pnj:                                   # PNJ décochés : on retire d'éventuels fichiers n*.fqoa déjà présents (le script du mod ignore les fichiers PNJ absents)
-            for f in os.listdir(mod_dst):
-                if f.startswith("n") and f.endswith(".fqoa"): os.remove(os.path.join(mod_dst, f))
+        try:
+            if zips:
+                if os.path.isdir(mod_dst): shutil.rmtree(mod_dst)
+                self.say(f"Décompression des fichiers du mod dans le jeu ({total // 2**20} Mo)…"); self.set_progress(0, max(total, 1)); done = 0
+                for zp in zips: done = self.extract(zp, game, done, total)
+            if not use_pnj:  # PNJ décochés : retirer les voix optionnelles du paquet installé.
+                for f in os.listdir(mod_dst):
+                    if f.startswith("n") and f.endswith(".fqoa"): os.remove(os.path.join(mod_dst, f))
+        except Exception:
+            shutil.rmtree(mod_dst, ignore_errors=True)
+            if old_mod_backup:
+                shutil.move(old_mod_backup, mod_dst)
+            if old_mod_backup or self.other_eml_mods(game):
+                self.patch_eml(game)
+            raise
         self.say("Application du patch (cela peut durer une à deux minutes)…"); self.after(0, lambda: (self.progress.configure(mode="indeterminate"), self.progress.start(12)))
-        rc, out = self.emm(["run", "-p", "-g", game])
+        ok, out, patch_count = self.patch_eml(game)
         self.after(0, lambda: (self.progress.stop(), self.progress.configure(mode="determinate"), self.progress.configure(value=0)))
-        m = re.search(r"Applied (\d+) patches", out)
-        if rc != 0 or not m:
+        if not ok:
             self.say("Le patch a échoué. Détail :\n" + out[-1500:])
-            if zips: shutil.rmtree(mod_dst, ignore_errors=True); self.say("Les fichiers décompressés ont été retirés.")
-            self.say("Si le jeu ne démarre plus : Steam → Propriétés → Fichiers installés → Vérifier l'intégrité."); return
+            shutil.rmtree(mod_dst, ignore_errors=True)
+            if old_mod_backup:
+                os.makedirs(os.path.dirname(mod_dst), exist_ok=True)
+                shutil.move(old_mod_backup, mod_dst)
+                # Reconstitue l'ancien état VF avec tous les mods toujours présents.
+                restored, restore_out, _ = self.patch_eml(game)
+                self.say("Ancienne VF restaurée." if restored else "⚠ Ancienne VF remise en place, mais EML n'a pas pu reconstruire le patch :\n" + restore_out[-1000:])
+            else:
+                self.say("Fichiers VF retirés après l'échec.")
+                # Si d'autres mods étaient déjà présents, leur patch doit rester actif.
+                if self.other_eml_mods(game):
+                    restored, restore_out, _ = self.patch_eml(game)
+                    if not restored: self.say("⚠ EML n'a pas pu reconstruire le patch des autres mods :\n" + restore_out[-1000:])
+            self.say("Aucun fichier de données partagé ni cache EML n'a été supprimé.")
+            return
         for ln in out.splitlines():
             mm = re.search(r"(VF : .*|ERREUR .*)", ln)
             if mm: self.say("   " + mm.group(1)[:300])
         after = dat_files(game)
         new = sorted(f for f, v in after.items() if before.get(f) != v)
-        json.dump(dict(date=time.strftime("%Y-%m-%d %H:%M:%S"), version=VERSION, build=game_build(game), patches=int(m.group(1)), pnj=bool(use_pnj), dat_changed=new),
-                  open(self.state_path(game), "w", encoding="utf-8"), indent=1)
-        self.say(f"Installation terminée ({m.group(1)} modifications appliquées).")
+        dat_cleanup_safe = (not self.other_eml_mods(game)
+                            and old_state.get("dat_cleanup_safe", not bool(old_state)))
+        tracked_dat = (sorted(set(old_state.get("dat_changed", [])) | set(new))
+                       if dat_cleanup_safe else [])
+        with open(self.state_path(game), "w", encoding="utf-8") as sf:
+            json.dump(dict(date=time.strftime("%Y-%m-%d %H:%M:%S"), version=VERSION,
+                           build=game_build(game), patches=patch_count,
+                           pnj=bool(use_pnj), dat_changed=tracked_dat,
+                           dat_cleanup_safe=dat_cleanup_safe), sf, indent=1)
+        if old_mod_backup: shutil.rmtree(old_mod_backup, ignore_errors=True)
+        self.say(f"Installation terminée ({patch_count} modifications appliquées, autres mods EML conservés).")
         self.say("Dans le jeu : Options → onglet JEU → « Langue du doublage » → « Français (VF) ». (Bouton « Comment régler le jeu » pour le détail.)")
 
     # -- désinstallation
     def do_uninstall(self, game, quiet=False):
-        bak = os.path.join(game, "enshrouded.kfc.bak"); exe = os.path.join(game, "enshrouded.exe")
+        bak = os.path.join(game, "enshrouded.kfc.bak")
+        exe = os.path.join(game, "enshrouded.exe")
+        mod_dst = self.mod_dir(game)
+        mods_root = os.path.join(game, "mods")
+        other_mods = self.other_eml_mods(game)
+        try:
+            state = json.load(open(self.state_path(game), encoding="utf-8"))
+        except Exception:
+            state = {}
         stale = os.path.isfile(bak) and os.path.getmtime(exe) > os.path.getmtime(bak) + 1
         if not os.path.isfile(bak):
-            self.say("Aucune sauvegarde d'origine (enshrouded.kfc.bak) : rien à restaurer automatiquement.")
-        elif stale:
-            self.say("⚠ Le jeu a été mis à jour depuis l'installation : la sauvegarde est périmée et ne doit PAS être restaurée.")
-            self.say("   Pour retrouver le jeu d'origine : Steam → clic droit sur Enshrouded → Propriétés → Fichiers installés → Vérifier l'intégrité des fichiers.")
-        else:
-            self.say("Restauration des fichiers d'origine…")
-            rc, out = self.emm(["restore", "-g", game])
-            if rc != 0: self.say("La restauration a échoué :\n" + out[-1000:]); return
-            try: extra = json.load(open(self.state_path(game), encoding="utf-8")).get("dat_changed", [])
-            except Exception: extra = []
-            n = 0
-            for f in extra:
-                m = re.fullmatch(r"enshrouded_(\d+)\.dat", f)
-                if m and int(m.group(1)) >= 55:   # fichiers de données ajoutés par le patch (le jeu d'origine s'arrête à 054)
-                    try: os.remove(os.path.join(game, f)); n += 1
+            self.say("Sauvegarde d'origine absente. Le mod VF va être retiré, mais les fichiers du jeu ne peuvent pas être restaurés automatiquement. Lancez ensuite la vérification Steam.")
+            shutil.rmtree(mod_dst, ignore_errors=True)
+            try: os.remove(self.state_path(game))
+            except OSError: pass
+            return False
+        if stale:
+            self.say("⚠ Le jeu a été mis à jour depuis la sauvegarde. Elle n'est pas restaurée. Le mod VF va être retiré; utilisez ensuite la vérification Steam pour réparer le jeu.")
+            shutil.rmtree(mod_dst, ignore_errors=True)
+            try: os.remove(self.state_path(game))
+            except OSError: pass
+            return False
+        if other_mods:
+            # Retire seulement la VF, puis EML rebâtit le KFC à partir de l'original
+            # et des mods qui restent. Garder .dat et .cache, qui peuvent leur appartenir.
+            backup_dir = os.path.join(game, f".ShroudInFrench_uninstall_{int(time.time())}")
+            if os.path.exists(backup_dir):
+                self.say("Désinstallation arrêtée : un dossier temporaire existe déjà.")
+                return False
+            had_mod_dir = os.path.isdir(mod_dst)
+            if had_mod_dir:
+                try: shutil.move(mod_dst, backup_dir)
+                except OSError as e:
+                    self.say(f"Impossible de mettre la VF de côté : {e}"); return False
+            ok, out, count = self.patch_eml(game)
+            if not ok:
+                if had_mod_dir:
+                    try: shutil.move(backup_dir, mod_dst)
                     except OSError: pass
-            if n: self.say(f"{n} fichier(s) de données ajouté(s) par le patch supprimé(s).")
-        shutil.rmtree(self.mod_dir(game), ignore_errors=True)
+                self.say("La reconstruction avec les autres mods a échoué. La VF a été remise en place. Détail :\n" + out[-1500:])
+                return False
+            if had_mod_dir: shutil.rmtree(backup_dir, ignore_errors=True)
+            try: os.remove(self.state_path(game))
+            except OSError: pass
+            self.say(f"VF retirée. Patch EML reconstruit avec les {len(other_mods)} autre(s) mod(s) ; leurs fichiers de données et leur cache ont été conservés.")
+            return True
+
+        self.say("Aucun autre mod EML détecté : restauration des fichiers d'origine…")
+        rc, out = self.emm(["restore", "-g", game])
+        if rc != 0:
+            self.say("La restauration a échoué :\n" + out[-1000:])
+            return False
+
+        shutil.rmtree(mod_dst, ignore_errors=True)
+        names = set(state.get("dat_changed", [])) if state.get("dat_cleanup_safe", False) else set()
+        # Une installation antérieure ou manuelle peut ne pas avoir de marqueur.
+        # Le balayage n'est donc permis que sur le build testé, sans autre mod.
+        if not state and game_build(game) == TESTED_BUILD:
+            try:
+                names = {n for n in os.listdir(game) if re.fullmatch(r"enshrouded_(\d+)\.dat", n) and int(re.fullmatch(r"enshrouded_(\d+)\.dat", n).group(1)) >= 55}
+            except OSError:
+                names = set()
+        removed = 0
+        for name in names:
+            m = re.fullmatch(r"enshrouded_(\d+)\.dat", name)
+            if m and int(m.group(1)) >= 55:
+                try:
+                    os.remove(os.path.join(game, name)); removed += 1
+                except OSError:
+                    pass
+        if removed:
+            self.say(f"{removed} fichier(s) de données EML ajouté(s) supprimé(s).")
+        cache = os.path.join(game, ".cache")
+        if os.path.isdir(cache):
+            shutil.rmtree(cache, ignore_errors=True)
+            self.say("Cache EML supprimé (il sera recréé si EML est réutilisé).")
+        kfc = os.path.join(game, "enshrouded.kfc")
+        if os.path.isfile(bak) and os.path.isfile(kfc):
+            try:
+                if filecmp.cmp(kfc, bak, shallow=False):
+                    os.remove(bak)
+                    self.say("Sauvegarde .kfc identique à l'original restauré supprimée.")
+            except OSError:
+                pass
         try: os.remove(self.state_path(game))
         except OSError: pass
-        if not quiet: self.say("Désinstallation terminée.")
+        if not quiet:
+            self.say("Désinstallation terminée : jeu restauré, dossier VF, cache EML et fichiers de patch retirés.")
+        return True
 
     def show_help(self):
         w = tk.Toplevel(self); w.title("Comment régler le jeu"); w.geometry("640x520")

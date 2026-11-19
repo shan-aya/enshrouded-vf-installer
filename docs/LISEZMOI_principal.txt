@@ -30,8 +30,8 @@ Pour vérifier que le mod s'est chargé : le fichier « logs\AAAA-MM-JJ.eml.log 
 MÉTHODE ALTERNATIVE (sans la DLL) : emm.exe en ligne de commande
 -----------------------------------------------------------------
 Si vous préférez ne pas utiliser la DLL : téléchargez « emm.exe » (même page, « Assets », environ 21 Mo ; SHA-256 0.2.0 : b1133f6b8ea7000596cc7710901bd8307b48165b0e650c0487a611d90ea49305), décompressez l'archive dans le dossier du jeu (étape 5), fermez le jeu, puis lancez dans un terminal (placé dans le dossier d'emm.exe) :
-    .\emm.exe run -p -g "C:\...\Steam\steamapps\common\Enshrouded"
-et attendez les lignes « VF : … 0 erreur(s) » et « Applied … patches » (1 à 2 minutes). Trouvez le terminal au bon endroit en tapant « powershell » dans la barre d'adresse de l'explorateur, dossier d'emm.exe ouvert. Pour désinstaller par cette méthode : emm.exe restore -g "<dossier du jeu>".
+    .\emm.exe run -p -f -g "C:\...\Steam\steamapps\common\Enshrouded"
+et attendez les lignes « VF : … 0 erreur(s) » et « Applied … patches » (1 à 2 minutes). Trouvez le terminal au bon endroit en tapant « powershell » dans la barre d'adresse de l'explorateur, dossier d'emm.exe ouvert. Pour désinstaller par cette méthode : sans autre mod EML, lancez emm.exe restore -g "<dossier du jeu>". Si des mods EML restent, supprimez seulement mods\ShroudInFrench puis lancez emm.exe run -p -f -g "<dossier du jeu>" pour reconstruire leur patch. La commande restore rétablit globalement l’index du jeu et annule les patchs EML existants.
 Si Windows affiche « Windows a protégé votre ordinateur » à l'ouverture de emm.exe : « Informations complémentaires » → « Exécuter quand même » (programme officiel d'EML, téléchargé sur GitHub ; comparez son empreinte).
 
 DÉSINSTALLER
