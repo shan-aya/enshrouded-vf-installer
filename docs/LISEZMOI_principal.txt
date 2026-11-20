@@ -1,7 +1,7 @@
 ShroudInFrench — voix françaises (VF) / French voice-over
 ========================================================
 
-EN : French voice-over for Enshrouded (journal pages; NPC lines in the optional file). Needs the Enshrouded Mod Loader (EML) proxy DLL: download dbghelp.dll from https://github.com/Brabb3l/kfc-parser/releases (Assets), put it next to enshrouded.exe, extract this archive (and the optional NPC file) into the game folder, then just launch the game. In game: Options > GAME > Voice language > "Français (VF)" (it replaces the Chinese slot).
+EN : French voice-over for Enshrouded (journal pages; NPC lines and the intro narration are optional). Needs the Enshrouded Mod Loader (EML) proxy DLL: download dbghelp.dll from https://github.com/Brabb3l/kfc-parser/releases (Assets), put it next to enshrouded.exe, extract this archive and any optional files into the game folder, then just launch the game. In game: Options > GAME > Voice language > "Français (VF)" (it replaces the Chinese slot).
 
 FR : voici le détail.
 
@@ -9,7 +9,7 @@ PRÉREQUIS
 ---------
 - Enshrouded Mod Loader (EML, par Brabb3l, licence GPL-3.0) : https://github.com/Brabb3l/kfc-parser/releases → dernière version (0.2.0 ou plus récente, compatible Enshrouded 1.0) → section « Assets ».
   Code source : https://github.com/Brabb3l/kfc-parser — documentation : https://brabb3l.github.io/kfc-parser/
-- Version du jeu testée : build Steam 26082781 (version interne 1273043).
+- Version du jeu testée : build Steam 26430625 (version interne 1287369).
 - Environ 1,3 Go libres (le patch ajoute un fichier de 750 Mo dans le dossier du jeu), 2 Go avec le fichier PNJ.
 
 INSTALLER (méthode recommandée : sans ligne de commande)
@@ -20,7 +20,8 @@ INSTALLER (méthode recommandée : sans ligne de commande)
 3. Trouvez le dossier du jeu : Steam → clic droit sur Enshrouded → Propriétés → Fichiers installés → « Parcourir… ». C'est le dossier qui contient enshrouded.exe.
 4. Copiez « dbghelp.dll » dans ce dossier (à côté de enshrouded.exe).
 5. Décompressez cette archive dans ce même dossier : elle crée « mods\ShroudInFrench\ ».
-   (Optionnel : faites de même avec le fichier « PNJ » pour la voix des personnages : ses fichiers rejoignent mods\ShroudInFrench.)
+   (Optionnel : décompressez « PNJ » dans le même dossier du jeu : ses fichiers rejoignent mods\ShroudInFrench.)
+   (Optionnel : décompressez « Intro VF » dans le même dossier du jeu : elle crée mods\ShroudInFrenchIntro\, un complément indépendant.)
 6. Lancez Enshrouded normalement (Steam). Au premier lancement, EML applique le patch tout seul (quelques secondes, un fichier « enshrouded_055.dat » d'environ 750 Mo est créé dans le dossier du jeu). Aucune autre action.
 7. Dans le jeu : Options → onglet JEU → « Langue du doublage » → « Français (VF) » (dernier choix de la liste).
    Pour que les pages de journal se lisent seules : « Lire automatiquement les notes sur l'univers » → « Toujours jouer ».
@@ -31,12 +32,12 @@ MÉTHODE ALTERNATIVE (sans la DLL) : emm.exe en ligne de commande
 -----------------------------------------------------------------
 Si vous préférez ne pas utiliser la DLL : téléchargez « emm.exe » (même page, « Assets », environ 21 Mo ; SHA-256 0.2.0 : b1133f6b8ea7000596cc7710901bd8307b48165b0e650c0487a611d90ea49305), décompressez l'archive dans le dossier du jeu (étape 5), fermez le jeu, puis lancez dans un terminal (placé dans le dossier d'emm.exe) :
     .\emm.exe run -p -f -g "C:\...\Steam\steamapps\common\Enshrouded"
-et attendez les lignes « VF : … 0 erreur(s) » et « Applied … patches » (1 à 2 minutes). Trouvez le terminal au bon endroit en tapant « powershell » dans la barre d'adresse de l'explorateur, dossier d'emm.exe ouvert. Pour désinstaller par cette méthode : sans autre mod EML, lancez emm.exe restore -g "<dossier du jeu>". Si des mods EML restent, supprimez seulement mods\ShroudInFrench puis lancez emm.exe run -p -f -g "<dossier du jeu>" pour reconstruire leur patch. La commande restore rétablit globalement l’index du jeu et annule les patchs EML existants.
+et attendez les lignes « VF : … 0 erreur(s) » et « Applied … patches » (1 à 2 minutes). Trouvez le terminal au bon endroit en tapant « powershell » dans la barre d'adresse de l'explorateur, dossier d'emm.exe ouvert. Pour désinstaller par cette méthode : supprimez mods\ShroudInFrench et, si présent, mods\ShroudInFrenchIntro ; avec d'autres mods EML, lancez emm.exe run -p -f -g "<dossier du jeu>" pour reconstruire leur patch. Sans autre mod EML, lancez emm.exe restore -g "<dossier du jeu>". La commande restore rétablit globalement l’index du jeu et annule les patchs EML existants.
 Si Windows affiche « Windows a protégé votre ordinateur » à l'ouverture de emm.exe : « Informations complémentaires » → « Exécuter quand même » (programme officiel d'EML, téléchargé sur GitHub ; comparez son empreinte).
 
 DÉSINSTALLER
 ------------
-1. Fermez le jeu. Supprimez le dossier mods\ShroudInFrench (et dbghelp.dll si vous ne voulez plus d'EML).
+1. Fermez le jeu. Supprimez mods\ShroudInFrench et, si installé, mods\ShroudInFrenchIntro (et dbghelp.dll si vous ne voulez plus d'EML).
 2. Pour retrouver exactement le jeu d'origine : Steam → clic droit sur Enshrouded → Propriétés → Fichiers installés → « Vérifier l'intégrité des fichiers du jeu » (Steam restaure l'index modifié). Vous pouvez ensuite supprimer « enshrouded_055.dat ».
    (Avec la méthode emm.exe : « emm.exe restore -g "<dossier du jeu>" » suffit.)
 Les fichiers d'origine des voix ne sont jamais modifiés : seul l'index enshrouded.kfc l'est.
@@ -48,13 +49,14 @@ Une mise à jour (Steam) remplace l'index du jeu. Avec la DLL, le patch est norm
 EN CAS DE PROBLÈME
 ------------------
 - Le jeu affiche « Votre fichier de paramètres est corrompu » : cliquez sur « Annuler » (pas sur « Réinitialiser »). Ne modifiez pas user_settings.json à la main.
-- Le jeu ne démarre plus : retirez dbghelp.dll (et le dossier mods\ShroudInFrench), puis Steam → « Vérifier l'intégrité des fichiers du jeu ».
+- Le jeu ne démarre plus : retirez dbghelp.dll et les dossiers mods\ShroudInFrench et mods\ShroudInFrenchIntro, puis Steam → « Vérifier l'intégrité des fichiers du jeu ».
 - La voix reste en anglais : « Langue du doublage » doit être sur « Français (VF) » ; regardez le fichier logs\*.eml.log (ligne « VF : … »).
 - Rien n'est modifié en dehors du dossier du jeu (aucun réglage Windows, aucune sauvegarde de partie).
 
 CE QUE FAIT LE MOD / LIMITES
 ----------------------------
 - 525 pages de journal doublées en français ; les répliques des personnages (1170) sont dans le fichier optionnel « PNJ » (sans lui, elles restent en anglais).
+- La narration de l'introduction est proposée séparément dans le fichier optionnel « Intro VF » ; sans ce complément, l'intro reste en chinois quand « Français (VF) » est sélectionné.
 - Les voix sont générées par synthèse vocale (XTTS-v2) à partir des voix anglaises du jeu : même timbre, ton proche. Les interjections (« Ah », « Hmm »…), les cris et les répliques sans texte retrouvé restent en anglais.
 - « Français (VF) » prend la place de « Chinois » dans la liste de la langue du doublage : les voix chinoises ne sont plus accessibles tant que le mod est installé. Anglais et allemand ne changent pas.
 
