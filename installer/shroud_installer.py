@@ -1,8 +1,11 @@
 """Installateur LÉGER de la VF d'Enshrouded (voix françaises, emplacement « Français (VF) » du menu Langue du doublage).
 Interface française. Ne contient AUCUN fichier audio ni emm.exe : il utilise les archives téléchargées sur Nexus Mods
-(fichier principal = pages de journal ; complément optionnel = répliques des personnages) et l'outil emm.exe d'EML (GitHub).
+(fichier principal = pages de journal ; compléments optionnels = répliques des personnages et narration d'introduction) et l'outil emm.exe d'EML (GitHub).
 Il trouve le jeu (Steam), les archives et emm.exe, décompresse le mod dans <jeu>\\mods\\ShroudInFrench, applique le patch
 (emm.exe run -p) ou restaure l'original. Aucun accès réseau ; rien n'est modifié hors du dossier du jeu."""
+# safe-modify v7 — 2026-11-20 : état PNJ exact lors d'une mise à jour Intro seule.
+# safe-modify v6 — 2026-11-20 : mises à jour sélectives PNJ/Intro sans supprimer les autres dossiers VF.
+# safe-modify v5 — 2026-11-20 : ajout du complément optionnel Intro VF et désinstallation conjointe.
 # safe-modify v4 — 2026-11-19 : mise à jour/désinstallation en reconstruisant le patch EML avec les autres mods.
 # v3 — 2026-11-19 : refuse aussi une mise à jour si la désinstallation préalable est bloquée.
 # v2 — 2026-11-19 : restauration contrôlée, retrait des caches/données EML et garde-fou pour les autres mods.
@@ -10,11 +13,13 @@ import filecmp, json, os, re, shutil, subprocess, sys, threading, time, webbrows
 import tkinter as tk
 from tkinter import filedialog, messagebox, scrolledtext, ttk
 
-VERSION = "2.2.2"
+VERSION = "2.3.1"
 APPID = "1203620"
 MOD_NAME = "ShroudInFrench"
 MOD_PREFIX = f"mods/{MOD_NAME}/"
-TESTED_BUILD = "26430625"   # build Steam (appmanifest) sur lequel la VF a été validée (version interne du jeu : 1273043)
+INTRO_MOD_NAME = "ShroudInFrenchIntro"
+INTRO_PREFIX = f"mods/{INTRO_MOD_NAME}/"
+TESTED_BUILD = "26430625"   # build Steam testé (version interne du jeu : 1287369)
 EML_URL = "https://github.com/Brabb3l/kfc-parser/releases"
 COFFEE_URL = "https://buymeacoffee.com/shan_aya"
 BASE = os.path.dirname(os.path.abspath(sys.executable if getattr(sys, "frozen", False) else __file__))
@@ -33,7 +38,7 @@ IMPORTANT
 - Si l'installateur dit que la sauvegarde est périmée : Steam → clic droit sur Enshrouded → Propriétés → Fichiers installés → « Vérifier l'intégrité des fichiers du jeu », puis relancez l'installateur.
 
 CE QU'IL FAUT TÉLÉCHARGER
-- Sur Nexus Mods : le fichier principal « ShroudInFrench » (pages de journal) et, si vous voulez la voix des personnages, le fichier optionnel « PNJ ». Laissez les .zip tels quels dans « Téléchargements » : l'installateur les trouve seul (sinon « Parcourir… »).
+- Sur Nexus Mods : le fichier principal « ShroudInFrench » (pages de journal), et en option « PNJ » (dialogues) et « Intro VF » (narration d'introduction). Laissez les .zip tels quels dans « Téléchargements » : l'installateur les trouve seul (sinon « Parcourir… »).
 - emm.exe (outil d'EML, par Brabb3l) : bouton « Où le télécharger ? » → GitHub → dernière version → « Assets » → emm.exe.
 """
 
@@ -113,11 +118,12 @@ def search_dirs(game=None):
 
 
 def zip_kind(path):
-    """'main' (contient mods/ShroudInFrench/mod.json), 'pnj' (fichiers n*.fqoa seuls) ou None. Lit seulement l'index du zip (rapide)."""
+    """Reconnaît le principal, le complément PNJ ou le complément Intro par le contenu du zip."""
     try:
         with zipfile.ZipFile(path) as z:
             names = z.namelist()
     except (zipfile.BadZipFile, OSError): return None
+    if INTRO_PREFIX + "mod.json" in names: return "intro"
     if MOD_PREFIX + "mod.json" in names: return "main"
     if any(n.startswith(MOD_PREFIX + "n") and n.endswith(".fqoa") for n in names): return "pnj"
     return None
@@ -125,12 +131,12 @@ def zip_kind(path):
 
 def find_archives(game=None):
     """Cherche dans Téléchargements, Bureau, dossier de l'installateur et du jeu les .zip de la VF (reconnus par leur contenu, pas par leur nom : Nexus renomme les fichiers)."""
-    found = {"main": None, "pnj": None}; cands = []
+    found = {"main": None, "pnj": None, "intro": None}; cands = []
     for d in search_dirs(game):
         try:
             for f in os.listdir(d):
                 p = os.path.join(d, f)
-                if f.lower().endswith(".zip") and os.path.isfile(p) and 5 * 2**20 < os.path.getsize(p) < 3 * 2**30: cands.append(p)
+                if f.lower().endswith(".zip") and os.path.isfile(p) and 100 * 2**10 < os.path.getsize(p) < 3 * 2**30: cands.append(p)
         except OSError: pass
     for p in sorted(cands, key=os.path.getmtime, reverse=True)[:60]:     # les plus récents d'abord
         if all(found.values()): break
@@ -158,12 +164,14 @@ def find_emm(game=None):
 
 
 def safe_members(z):
-    """Entrées du zip autorisées : uniquement sous mods/ShroudInFrench/, sans « .. » ni chemin absolu."""
+    """N'accepte que le dossier correspondant au type d'archive, sans traversal."""
     out = []
+    names = {i.filename.replace("\\", "/") for i in z.infolist()}
+    prefix = INTRO_PREFIX if INTRO_PREFIX + "mod.json" in names else MOD_PREFIX
     for i in z.infolist():
         n = i.filename.replace("\\", "/")
         if i.is_dir(): continue
-        if not n.startswith(MOD_PREFIX) or ".." in n.split("/") or os.path.isabs(n) or ":" in n: continue
+        if not n.startswith(prefix) or ".." in n.split("/") or os.path.isabs(n) or ":" in n: continue
         out.append(i)
     return out
 
@@ -174,14 +182,14 @@ class App(tk.Tk):
         super().__init__()
         self.title(f"ShroudInFrench — installateur {VERSION}")
         self.geometry("780x880"); self.minsize(700, 760)
-        self.game = None; self.busy = False; self.opt_pnj = True
+        self.game = None; self.busy = False; self.opt_pnj = True; self.opt_intro = True
         try:   # bandeau (illustration + logo Shan_ayA) embarqué dans l'exe (assets\entete.png)
             base = getattr(sys, "_MEIPASS", BASE)
             self.img_header = tk.PhotoImage(file=os.path.join(base, "assets", "entete.png"))
             tk.Label(self, image=self.img_header, borderwidth=0).pack(pady=(10, 0))
         except Exception: pass
         box = ttk.Frame(self, padding=(10, 8, 10, 0)); box.pack(fill="x"); box.columnconfigure(1, weight=1)
-        self.var_game, self.var_emm, self.var_main, self.var_pnjzip = (tk.StringVar() for _ in range(4))
+        self.var_game, self.var_emm, self.var_main, self.var_pnjzip, self.var_introzip = (tk.StringVar() for _ in range(5))
         ttk.Label(box, text="Dossier du jeu :").grid(row=0, column=0, sticky="w", pady=2)
         ttk.Entry(box, textvariable=self.var_game).grid(row=0, column=1, sticky="ew", padx=6)
         ttk.Button(box, text="Parcourir…", command=lambda: self.browse_dir(self.var_game, "Dossier d'Enshrouded (celui qui contient enshrouded.exe)")).grid(row=0, column=2)
@@ -195,6 +203,9 @@ class App(tk.Tk):
         ttk.Label(box, text="Complément PNJ :").grid(row=3, column=0, sticky="w", pady=2)
         ttk.Entry(box, textvariable=self.var_pnjzip).grid(row=3, column=1, sticky="ew", padx=6)
         ttk.Button(box, text="Parcourir…", command=lambda: self.browse_file(self.var_pnjzip, "Archive optionnelle « PNJ » (.zip)", [("Archives", "*.zip")])).grid(row=3, column=2)
+        ttk.Label(box, text="Complément Intro VF :").grid(row=4, column=0, sticky="w", pady=2)
+        ttk.Entry(box, textvariable=self.var_introzip).grid(row=4, column=1, sticky="ew", padx=6)
+        ttk.Button(box, text="Parcourir…", command=lambda: self.browse_file(self.var_introzip, "Archive optionnelle « Intro VF » (.zip)", [("Archives", "*.zip")])).grid(row=4, column=2)
         self.lbl_status = ttk.Label(self, text="", padding=(10, 6), wraplength=740, justify="left"); self.lbl_status.pack(fill="x")
         bt = ttk.Frame(self, padding=(10, 0, 10, 8)); bt.pack(fill="x")
         self.btn_install = ttk.Button(bt, text="Installer la VF", command=lambda: self.run(self.do_install)); self.btn_install.pack(side="left")
@@ -202,6 +213,8 @@ class App(tk.Tk):
         ttk.Button(bt, text="Vérifier", command=self.refresh).pack(side="left")
         self.var_pnj = tk.BooleanVar(value=True)
         ttk.Checkbutton(bt, text="Répliques de personnages (PNJ)", variable=self.var_pnj).pack(side="left", padx=16)
+        self.var_intro = tk.BooleanVar(value=True)
+        ttk.Checkbutton(bt, text="Narration de l'intro", variable=self.var_intro).pack(side="left", padx=8)
         ttk.Button(bt, text="Comment régler le jeu", command=self.show_help).pack(side="right")
         foot = ttk.Frame(self); foot.pack(side="bottom", fill="x", padx=10, pady=(0, 8))      # pied de fenêtre (packé avant le journal pour rester visible)
         ttk.Label(foot, text="Mod gratuit, fait avec plaisir. Un petit café pour la suite ?").pack(side="left")
@@ -242,18 +255,20 @@ class App(tk.Tk):
         a = find_archives(game)
         if a["main"] and not self.var_main.get(): self.var_main.set(a["main"]); self.say(f"Fichier principal trouvé : {a['main']}")
         if a["pnj"] and not self.var_pnjzip.get(): self.var_pnjzip.set(a["pnj"]); self.say(f"Complément PNJ trouvé : {a['pnj']}")
+        if a["intro"] and not self.var_introzip.get(): self.var_introzip.set(a["intro"]); self.say(f"Complément Intro VF trouvé : {a['intro']}")
         if not a["main"] and not self.var_main.get(): self.say("Fichier principal (.zip) non trouvé dans Téléchargements / Bureau : téléchargez-le sur Nexus Mods, ou choisissez-le avec « Parcourir… ».")
 
     def state_path(self, game): return os.path.join(game, "vf_install.json")
     def installed(self, game): return os.path.isfile(self.state_path(game))
     def mod_dir(self, game): return os.path.join(game, "mods", MOD_NAME)
+    def intro_mod_dir(self, game): return os.path.join(game, "mods", INTRO_MOD_NAME)
 
     def other_eml_mods(self, game):
         """Mods EML installés, hors VF. Les dossiers sans mod.json ne sont pas des mods EML."""
         root = os.path.join(game, "mods")
         try:
             return [n for n in os.listdir(root)
-                    if n.casefold() != MOD_NAME.casefold()
+                    if n.casefold() not in (MOD_NAME.casefold(), INTRO_MOD_NAME.casefold())
                     and os.path.isfile(os.path.join(root, n, "mod.json"))]
         except OSError:
             return []
@@ -273,10 +288,11 @@ class App(tk.Tk):
         if game_running(): parts.append("⚠ le jeu est lancé : fermez-le avant d'installer ou de désinstaller")
         emm = self.var_emm.get().strip()
         parts.append("emm.exe ✔" if os.path.isfile(emm) else "⚠ emm.exe manquant")
-        m, p = self.var_main.get().strip(), self.var_pnjzip.get().strip()
+        m, p, intro = self.var_main.get().strip(), self.var_pnjzip.get().strip(), self.var_introzip.get().strip()
         has_mod = os.path.isfile(os.path.join(self.mod_dir(game), "mod.json"))
         parts.append("principal ✔" if os.path.isfile(m) else ("principal : déjà dans le jeu ✔" if has_mod else "⚠ fichier principal manquant"))
         parts.append("PNJ ✔" if os.path.isfile(p) else "PNJ : absent (optionnel)")
+        parts.append("intro ✔" if os.path.isfile(intro) else ("intro : déjà installée ✔" if os.path.isfile(os.path.join(self.intro_mod_dir(game), "mod.json")) else "intro : absente (optionnelle)"))
         self.lbl_status.configure(text="  —  ".join(parts))
 
     def run(self, fn):
@@ -286,7 +302,8 @@ class App(tk.Tk):
         if game_running(): messagebox.showwarning("ShroudInFrench", "Enshrouded est lancé. Fermez le jeu complètement puis réessayez."); return
         if not os.path.isfile(self.var_emm.get().strip()): messagebox.showerror("ShroudInFrench", "emm.exe (EML) est introuvable.\nUtilisez « Où le télécharger ? », puis « Parcourir… »."); return
         self.opt_pnj = bool(self.var_pnj.get())
-        self.emm_path = self.var_emm.get().strip(); self.zip_main = self.var_main.get().strip(); self.zip_pnj = self.var_pnjzip.get().strip()
+        self.opt_intro = bool(self.var_intro.get())
+        self.emm_path = self.var_emm.get().strip(); self.zip_main = self.var_main.get().strip(); self.zip_pnj = self.var_pnjzip.get().strip(); self.zip_intro = self.var_introzip.get().strip()
         self.busy = True; self.btn_install.state(["disabled"]); self.btn_uninstall.state(["disabled"])
         def work():
             try: fn(self.game)
@@ -314,26 +331,34 @@ class App(tk.Tk):
 
     # -- installation
     def do_install(self, game):
-        main, pnjz = self.zip_main, self.zip_pnj
-        have_main_zip, have_pnj_zip = os.path.isfile(main), os.path.isfile(pnjz)
+        main, pnjz, introzip = self.zip_main, self.zip_pnj, self.zip_intro
+        have_main_zip, have_pnj_zip, have_intro_zip = os.path.isfile(main), os.path.isfile(pnjz), os.path.isfile(introzip)
         mod_dst = self.mod_dir(game); pre_existing = os.path.isfile(os.path.join(mod_dst, "mod.json")) and not self.installed(game)
-        if not have_main_zip and not pre_existing:
+        intro_dst = self.intro_mod_dir(game)
+        if not have_main_zip and not pre_existing and not self.installed(game):
             self.say("Fichier principal introuvable : téléchargez « ShroudInFrench » sur Nexus Mods (ou choisissez le .zip avec « Parcourir… »)."); return
         if have_main_zip and zip_kind(main) != "main": self.say("Le fichier choisi comme « principal » n'est pas l'archive principale de la VF."); return
         if have_pnj_zip and zip_kind(pnjz) != "pnj": self.say("Le fichier choisi comme « PNJ » n'est pas l'archive des répliques de personnages."); return
+        if have_intro_zip and zip_kind(introzip) != "intro": self.say("Le fichier choisi comme « Intro VF » n'est pas l'archive optionnelle de l'introduction."); return
         use_pnj = self.opt_pnj
-        self.say("Répliques de personnages (PNJ) : " + ("incluses." if use_pnj and (have_pnj_zip or pre_existing) else ("demandées mais fichier PNJ absent : pages de journal seules." if use_pnj else "NON incluses (pages de journal seules).")))
-        zips = ([main] if have_main_zip else []) + ([pnjz] if (use_pnj and have_pnj_zip) else [])
+        pnj_present = os.path.isdir(mod_dst) and any(f.startswith("n") and f.endswith(".fqoa") for f in os.listdir(mod_dst))
+        self.say("Répliques de personnages (PNJ) : " + ("incluses." if use_pnj and (have_pnj_zip or pnj_present) else ("demandées mais fichier PNJ absent : pages de journal seules." if use_pnj else "NON incluses (pages de journal seules).")))
+        use_intro = self.opt_intro
+        self.say("Narration de l'intro : " + ("incluse." if use_intro and have_intro_zip else ("déjà installée et conservée." if use_intro and os.path.isfile(os.path.join(intro_dst, "mod.json")) else ("demandée mais archive absente." if use_intro else "NON incluse."))))
+        zips = ([main] if have_main_zip else []) + ([pnjz] if (use_pnj and have_pnj_zip) else []) + ([introzip] if (use_intro and have_intro_zip) else [])
         total = 0
         for zp in zips:
             with zipfile.ZipFile(zp) as z: total += sum(i.file_size for i in safe_members(z))
         need = total * 2 + 900 * 1024 * 1024
         free = shutil.disk_usage(game).free
         if free < need: self.say(f"Espace disque insuffisant : {free // 2**20} Mo libres, {need // 2**20} Mo nécessaires."); return
-        # Une mise à jour ne désinstalle plus globalement EML : on remplace seulement
-        # le dossier VF puis EML reconstruit le patch commun depuis sa sauvegarde d'origine.
+        # Une archive optionnelle ne doit jamais effacer les autres composants déjà installés.
+        # Le dossier journal/PNJ est modifié uniquement si l'archive principale/PNJ change
+        # ou si la case PNJ est décochée ; l'intro reste indépendante.
+        mod_touched = have_main_zip or (use_pnj and have_pnj_zip) or not use_pnj
         old_state = {}
         old_mod_backup = None
+        old_intro_backup = None
         was_installed = self.installed(game)
         backup_kfc = os.path.join(game, "enshrouded.kfc.bak")
         game_exe = os.path.join(game, "enshrouded.exe")
@@ -343,25 +368,54 @@ class App(tk.Tk):
             if not os.path.isfile(backup_kfc) or os.path.getmtime(game_exe) > os.path.getmtime(backup_kfc) + 1:
                 self.say("Mise à jour arrêtée : la sauvegarde EML est absente ou périmée. Vérifiez les fichiers du jeu dans Steam avant de réessayer.")
                 return
-            if os.path.isdir(mod_dst):
-                old_mod_backup = os.path.join(game, f".ShroudInFrench_update_{int(time.time())}")
-                if os.path.exists(old_mod_backup):
-                    self.say("Mise à jour arrêtée : un dossier de sauvegarde temporaire existe déjà.")
-                    return
-                shutil.move(mod_dst, old_mod_backup)
+        if mod_touched and os.path.isdir(mod_dst):
+            old_mod_backup = os.path.join(game, f".ShroudInFrench_update_{int(time.time())}")
+            if os.path.exists(old_mod_backup):
+                self.say("Mise à jour arrêtée : un dossier de sauvegarde temporaire existe déjà.")
+                return
+            shutil.move(mod_dst, old_mod_backup)
+        if os.path.isdir(intro_dst) and (have_intro_zip or not use_intro):
+            old_intro_backup = os.path.join(game, f".ShroudInFrenchIntro_update_{int(time.time())}")
+            if os.path.exists(old_intro_backup):
+                if old_mod_backup: shutil.move(old_mod_backup, mod_dst)
+                self.say("Mise à jour arrêtée : un dossier temporaire Intro existe déjà.")
+                return
+            shutil.move(intro_dst, old_intro_backup)
         before = dat_files(game)
         try:
             if zips:
-                if os.path.isdir(mod_dst): shutil.rmtree(mod_dst)
                 self.say(f"Décompression des fichiers du mod dans le jeu ({total // 2**20} Mo)…"); self.set_progress(0, max(total, 1)); done = 0
-                for zp in zips: done = self.extract(zp, game, done, total)
+                if have_main_zip:
+                    if os.path.isdir(mod_dst): shutil.rmtree(mod_dst)
+                    done = self.extract(main, game, done, total)
+                elif mod_touched and old_mod_backup and os.path.isdir(old_mod_backup):
+                    # Pour un remplacement PNJ seul (ou une désactivation PNJ), repartir
+                    # d'une copie de l'ancien dossier permet un retour arrière complet.
+                    shutil.copytree(old_mod_backup, mod_dst)
+                if use_pnj and have_pnj_zip:
+                    done = self.extract(pnjz, game, done, total)
+                elif have_main_zip and use_pnj and old_mod_backup and os.path.isdir(old_mod_backup):
+                    # Mise à jour principale seule : garder les fichiers PNJ déjà installés.
+                    os.makedirs(mod_dst, exist_ok=True)
+                    for f in os.listdir(old_mod_backup):
+                        if f.startswith("n") and f.endswith(".fqoa"):
+                            shutil.copy2(os.path.join(old_mod_backup, f), os.path.join(mod_dst, f))
+                if use_intro and have_intro_zip:
+                    done = self.extract(introzip, game, done, total)
+            elif mod_touched and old_mod_backup and os.path.isdir(old_mod_backup):
+                shutil.copytree(old_mod_backup, mod_dst)
             if not use_pnj:  # PNJ décochés : retirer les voix optionnelles du paquet installé.
-                for f in os.listdir(mod_dst):
-                    if f.startswith("n") and f.endswith(".fqoa"): os.remove(os.path.join(mod_dst, f))
+                if os.path.isdir(mod_dst):
+                    for f in os.listdir(mod_dst):
+                        if f.startswith("n") and f.endswith(".fqoa"): os.remove(os.path.join(mod_dst, f))
         except Exception:
-            shutil.rmtree(mod_dst, ignore_errors=True)
+            if mod_touched: shutil.rmtree(mod_dst, ignore_errors=True)
             if old_mod_backup:
                 shutil.move(old_mod_backup, mod_dst)
+            if (have_intro_zip or not use_intro) and os.path.isdir(intro_dst):
+                shutil.rmtree(intro_dst, ignore_errors=True)
+            if old_intro_backup:
+                shutil.move(old_intro_backup, intro_dst)
             if old_mod_backup or self.other_eml_mods(game):
                 self.patch_eml(game)
             raise
@@ -370,19 +424,19 @@ class App(tk.Tk):
         self.after(0, lambda: (self.progress.stop(), self.progress.configure(mode="determinate"), self.progress.configure(value=0)))
         if not ok:
             self.say("Le patch a échoué. Détail :\n" + out[-1500:])
-            shutil.rmtree(mod_dst, ignore_errors=True)
+            if mod_touched: shutil.rmtree(mod_dst, ignore_errors=True)
+            if os.path.isdir(intro_dst) and (have_intro_zip or not use_intro): shutil.rmtree(intro_dst, ignore_errors=True)
             if old_mod_backup:
                 os.makedirs(os.path.dirname(mod_dst), exist_ok=True)
                 shutil.move(old_mod_backup, mod_dst)
-                # Reconstitue l'ancien état VF avec tous les mods toujours présents.
+            if old_intro_backup:
+                os.makedirs(os.path.dirname(intro_dst), exist_ok=True)
+                shutil.move(old_intro_backup, intro_dst)
+            self.say("Fichiers VF précédents restaurés." if (old_mod_backup or old_intro_backup) else "Fichiers VF retirés après l'échec.")
+            # Reconstitue le patch à partir des fichiers restaurés et des autres mods.
+            if old_mod_backup or old_intro_backup or self.other_eml_mods(game):
                 restored, restore_out, _ = self.patch_eml(game)
-                self.say("Ancienne VF restaurée." if restored else "⚠ Ancienne VF remise en place, mais EML n'a pas pu reconstruire le patch :\n" + restore_out[-1000:])
-            else:
-                self.say("Fichiers VF retirés après l'échec.")
-                # Si d'autres mods étaient déjà présents, leur patch doit rester actif.
-                if self.other_eml_mods(game):
-                    restored, restore_out, _ = self.patch_eml(game)
-                    if not restored: self.say("⚠ EML n'a pas pu reconstruire le patch des autres mods :\n" + restore_out[-1000:])
+                if not restored: self.say("⚠ EML n'a pas pu reconstruire le patch restauré :\n" + restore_out[-1000:])
             self.say("Aucun fichier de données partagé ni cache EML n'a été supprimé.")
             return
         for ln in out.splitlines():
@@ -397,9 +451,10 @@ class App(tk.Tk):
         with open(self.state_path(game), "w", encoding="utf-8") as sf:
             json.dump(dict(date=time.strftime("%Y-%m-%d %H:%M:%S"), version=VERSION,
                            build=game_build(game), patches=patch_count,
-                           pnj=bool(use_pnj), dat_changed=tracked_dat,
+                           pnj=bool(use_pnj and os.path.isdir(mod_dst) and any(f.startswith("n") and f.endswith(".fqoa") for f in os.listdir(mod_dst))), intro=bool(use_intro and os.path.isfile(os.path.join(intro_dst, "mod.json"))), dat_changed=tracked_dat,
                            dat_cleanup_safe=dat_cleanup_safe), sf, indent=1)
         if old_mod_backup: shutil.rmtree(old_mod_backup, ignore_errors=True)
+        if old_intro_backup: shutil.rmtree(old_intro_backup, ignore_errors=True)
         self.say(f"Installation terminée ({patch_count} modifications appliquées, autres mods EML conservés).")
         self.say("Dans le jeu : Options → onglet JEU → « Langue du doublage » → « Français (VF) ». (Bouton « Comment régler le jeu » pour le détail.)")
 
@@ -408,7 +463,7 @@ class App(tk.Tk):
         bak = os.path.join(game, "enshrouded.kfc.bak")
         exe = os.path.join(game, "enshrouded.exe")
         mod_dst = self.mod_dir(game)
-        mods_root = os.path.join(game, "mods")
+        intro_dst = self.intro_mod_dir(game)
         other_mods = self.other_eml_mods(game)
         try:
             state = json.load(open(self.state_path(game), encoding="utf-8"))
@@ -418,35 +473,53 @@ class App(tk.Tk):
         if not os.path.isfile(bak):
             self.say("Sauvegarde d'origine absente. Le mod VF va être retiré, mais les fichiers du jeu ne peuvent pas être restaurés automatiquement. Lancez ensuite la vérification Steam.")
             shutil.rmtree(mod_dst, ignore_errors=True)
+            shutil.rmtree(intro_dst, ignore_errors=True)
             try: os.remove(self.state_path(game))
             except OSError: pass
             return False
         if stale:
             self.say("⚠ Le jeu a été mis à jour depuis la sauvegarde. Elle n'est pas restaurée. Le mod VF va être retiré; utilisez ensuite la vérification Steam pour réparer le jeu.")
             shutil.rmtree(mod_dst, ignore_errors=True)
+            shutil.rmtree(intro_dst, ignore_errors=True)
             try: os.remove(self.state_path(game))
             except OSError: pass
             return False
         if other_mods:
             # Retire seulement la VF, puis EML rebâtit le KFC à partir de l'original
             # et des mods qui restent. Garder .dat et .cache, qui peuvent leur appartenir.
-            backup_dir = os.path.join(game, f".ShroudInFrench_uninstall_{int(time.time())}")
-            if os.path.exists(backup_dir):
+            backup_root = os.path.join(game, f".ShroudInFrench_uninstall_{int(time.time())}")
+            if os.path.exists(backup_root):
                 self.say("Désinstallation arrêtée : un dossier temporaire existe déjà.")
                 return False
             had_mod_dir = os.path.isdir(mod_dst)
+            had_intro_dir = os.path.isdir(intro_dst)
             if had_mod_dir:
-                try: shutil.move(mod_dst, backup_dir)
+                try:
+                    os.makedirs(backup_root)
+                    shutil.move(mod_dst, os.path.join(backup_root, MOD_NAME))
                 except OSError as e:
                     self.say(f"Impossible de mettre la VF de côté : {e}"); return False
+            if had_intro_dir:
+                try:
+                    if not os.path.isdir(backup_root): os.makedirs(backup_root)
+                    shutil.move(intro_dst, os.path.join(backup_root, INTRO_MOD_NAME))
+                except OSError as e:
+                    if had_mod_dir and os.path.isdir(os.path.join(backup_root, MOD_NAME)):
+                        shutil.move(os.path.join(backup_root, MOD_NAME), mod_dst)
+                    shutil.rmtree(backup_root, ignore_errors=True)
+                    self.say(f"Impossible de mettre le complément Intro de côté : {e}"); return False
             ok, out, count = self.patch_eml(game)
             if not ok:
                 if had_mod_dir:
-                    try: shutil.move(backup_dir, mod_dst)
+                    try: shutil.move(os.path.join(backup_root, MOD_NAME), mod_dst)
                     except OSError: pass
+                if had_intro_dir:
+                    try: shutil.move(os.path.join(backup_root, INTRO_MOD_NAME), intro_dst)
+                    except OSError: pass
+                shutil.rmtree(backup_root, ignore_errors=True)
                 self.say("La reconstruction avec les autres mods a échoué. La VF a été remise en place. Détail :\n" + out[-1500:])
                 return False
-            if had_mod_dir: shutil.rmtree(backup_dir, ignore_errors=True)
+            shutil.rmtree(backup_root, ignore_errors=True)
             try: os.remove(self.state_path(game))
             except OSError: pass
             self.say(f"VF retirée. Patch EML reconstruit avec les {len(other_mods)} autre(s) mod(s) ; leurs fichiers de données et leur cache ont été conservés.")
@@ -459,6 +532,7 @@ class App(tk.Tk):
             return False
 
         shutil.rmtree(mod_dst, ignore_errors=True)
+        shutil.rmtree(intro_dst, ignore_errors=True)
         names = set(state.get("dat_changed", [])) if state.get("dat_cleanup_safe", False) else set()
         # Une installation antérieure ou manuelle peut ne pas avoir de marqueur.
         # Le balayage n'est donc permis que sur le build testé, sans autre mod.
