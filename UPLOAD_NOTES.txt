@@ -1,0 +1,1 @@
+À extraire à la racine du dépôt shan-aya/enshrouded-vf-installer, en remplaçant les fichiers du même chemin. Cela met à jour l'installateur, la notice principale et ajoute la notice Intro VF.
