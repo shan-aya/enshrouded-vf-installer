@@ -3,6 +3,7 @@ Interface française. Ne contient AUCUN fichier audio ni emm.exe : il utilise le
 (fichier principal = pages de journal ; compléments optionnels = répliques des personnages et narration d'introduction) et l'outil emm.exe d'EML (GitHub).
 Il trouve le jeu (Steam), les archives et emm.exe, décompresse le mod dans <jeu>\\mods\\ShroudInFrench, applique le patch
 (emm.exe run -p) ou restaure l'original. Aucun accès réseau ; rien n'est modifié hors du dossier du jeu."""
+# safe-modify v8 — 2026-11-21 — bouton « Comment régler le jeu » déplacé dans une ligne dédiée pour rester visible.
 # safe-modify v7 — 2026-11-20 : état PNJ exact lors d'une mise à jour Intro seule.
 # safe-modify v6 — 2026-11-20 : mises à jour sélectives PNJ/Intro sans supprimer les autres dossiers VF.
 # safe-modify v5 — 2026-11-20 : ajout du complément optionnel Intro VF et désinstallation conjointe.
@@ -13,7 +14,7 @@ import filecmp, json, os, re, shutil, subprocess, sys, threading, time, webbrows
 import tkinter as tk
 from tkinter import filedialog, messagebox, scrolledtext, ttk
 
-VERSION = "2.3.1"
+VERSION = "2.3.2"
 APPID = "1203620"
 MOD_NAME = "ShroudInFrench"
 MOD_PREFIX = f"mods/{MOD_NAME}/"
@@ -207,6 +208,9 @@ class App(tk.Tk):
         ttk.Entry(box, textvariable=self.var_introzip).grid(row=4, column=1, sticky="ew", padx=6)
         ttk.Button(box, text="Parcourir…", command=lambda: self.browse_file(self.var_introzip, "Archive optionnelle « Intro VF » (.zip)", [("Archives", "*.zip")])).grid(row=4, column=2)
         self.lbl_status = ttk.Label(self, text="", padding=(10, 6), wraplength=740, justify="left"); self.lbl_status.pack(fill="x")
+        # safe-modify v8: put help on a dedicated full-width row so it stays visible at normal window sizes.
+        helpbar = ttk.Frame(self, padding=(10, 0, 10, 4)); helpbar.pack(fill="x")
+        ttk.Button(helpbar, text="Comment régler le jeu", command=self.show_help).pack(side="left")
         bt = ttk.Frame(self, padding=(10, 0, 10, 8)); bt.pack(fill="x")
         self.btn_install = ttk.Button(bt, text="Installer la VF", command=lambda: self.run(self.do_install)); self.btn_install.pack(side="left")
         self.btn_uninstall = ttk.Button(bt, text="Désinstaller", command=lambda: self.run(self.do_uninstall)); self.btn_uninstall.pack(side="left", padx=8)
@@ -215,7 +219,6 @@ class App(tk.Tk):
         ttk.Checkbutton(bt, text="Répliques de personnages (PNJ)", variable=self.var_pnj).pack(side="left", padx=16)
         self.var_intro = tk.BooleanVar(value=True)
         ttk.Checkbutton(bt, text="Narration de l'intro", variable=self.var_intro).pack(side="left", padx=8)
-        ttk.Button(bt, text="Comment régler le jeu", command=self.show_help).pack(side="right")
         foot = ttk.Frame(self); foot.pack(side="bottom", fill="x", padx=10, pady=(0, 8))      # pied de fenêtre (packé avant le journal pour rester visible)
         ttk.Label(foot, text="Mod gratuit, fait avec plaisir. Un petit café pour la suite ?").pack(side="left")
         ttk.Button(foot, text="☕ Payez-moi un café", command=lambda: webbrowser.open(COFFEE_URL)).pack(side="right")
