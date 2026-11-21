@@ -1,4 +1,5 @@
 ﻿# -*- mode: python ; coding: utf-8 -*-
+# safe-modify v2 — 2026-11-21 — UPX désactivé pour réduire les faux positifs Defender.
 # Spec PyInstaller (onedir) de l'installateur. Chemins relatifs au depot. Prerequis : build\tclx\ (voir build\extract_tcl_tk.py / build_installer.ps1).
 import os
 ROOT = os.path.abspath(os.path.join(SPECPATH, '..'))
@@ -13,6 +14,6 @@ a = Analysis(
 )
 pyz = PYZ(a.pure)
 exe = EXE(pyz, a.scripts, [], exclude_binaries=True, name='ShroudInFrench_Installateur', debug=False, bootloader_ignore_signals=False,
-          strip=False, upx=True, console=False, disable_windowed_traceback=False, argv_emulation=False, target_arch=None,
+          strip=False, upx=False, console=False, disable_windowed_traceback=False, argv_emulation=False, target_arch=None,
           codesign_identity=None, entitlements_file=None)
-coll = COLLECT(exe, a.binaries, a.datas, strip=False, upx=True, upx_exclude=[], name='ShroudInFrench_Installateur')
+coll = COLLECT(exe, a.binaries, a.datas, strip=False, upx=False, upx_exclude=[], name='ShroudInFrench_Installateur')

@@ -1,3 +1,8 @@
+<!-- safe-modify -- historique
+Version actuelle : v2
+v2 -- 2026-11-21 -- téléchargement automatique vérifié de la dernière version EML.
+v1 -- version de base sauvegardée.
+-->
 # enshrouded-vf-installer
 
 **FR** — Code source de l'installateur du mod **ShroudInFrench**, des voix françaises pour *Enshrouded* (525 pages de journal, 1 170 répliques de personnages en option, et narration d'introduction en option).
@@ -10,11 +15,11 @@ Ce dépôt **ne contient ni les fichiers audio du mod, ni `emm.exe`** : l'instal
 Fenêtre Tk (Python, interface en français). Tout est dans [`installer/shroud_installer.py`](installer/shroud_installer.py) :
 
 1. **Détecte le jeu** : registre Steam + `libraryfolders.vdf` + `appmanifest_1203620.acf` (build Steam affiché). Choix manuel possible.
-2. **Trouve les archives et `emm.exe`** dans Téléchargements, Bureau, le dossier de l'installateur et celui du jeu ; les archives sont reconnues **par leur contenu** : principale (`mods/ShroudInFrench/mod.json`), PNJ (`n*.fqoa`) et Intro VF (`mods/ShroudInFrenchIntro/mod.json`).
+2. **Récupère EML automatiquement** : consulte la dernière release officielle et télécharge `emm.exe` dans le profil utilisateur avec contrôle SHA-256. Si GitHub est inaccessible, un `emm.exe` local peut être sélectionné. Les archives Nexus sont détectées dans Téléchargements, Bureau, le dossier de l'installateur et celui du jeu, par leur contenu : principale (`mods/ShroudInFrench/mod.json`), PNJ (`n*.fqoa`) et Intro VF (`mods/ShroudInFrenchIntro/mod.json`).
 3. **Installer / mettre à jour** : n'extrait que les fichiers présents dans les dossiers ShroudInFrench gérés par le mod (sans `..` ni chemin absolu), puis lance **`emm.exe run -p -f -g <jeu>`** ([EML](https://github.com/Brabb3l/kfc-parser), GPL-3.0) pour reconstruire le patch avec tous les mods EML présents (jeu fermé). Les cases PNJ et Intro VF activent ou retirent ces compléments indépendamment.
 4. **Désinstaller** : retire `mods\\ShroudInFrench` et `mods\\ShroudInFrenchIntro`. S’il reste d’autres mods EML, force leur réapplication avec `emm.exe run -p -f -g <jeu>` et conserve leurs fichiers de données ainsi que le cache. Sans autre mod EML, restaure l’original avec `emm.exe restore -g <jeu>` et nettoie les fichiers appartenant à une installation récente et identifiée. Refuse toute opération si la sauvegarde d’origine est absente ou périmée.
 
-**Ce qu'il ne fait pas** : aucun accès réseau, aucune télémétrie, aucun droit administrateur, aucune modification hors du dossier du jeu (ni registre, ni réglages Windows, ni sauvegardes de parties). Le seul lien externe : les boutons « Où le télécharger ? » et « Payez-moi un café » ouvrent une page dans le navigateur, sur clic. Il lance deux programmes : `tasklist` (pour vérifier que le jeu est fermé) et `emm.exe`.
+**Ce qu'il ne fait pas** : aucune télémétrie, aucun droit administrateur, aucune modification des réglages Windows ni des sauvegardes de parties. Au démarrage, il consulte la dernière release officielle d'EML sur GitHub et télécharge `emm.exe` si nécessaire, dans le profil utilisateur avec vérification SHA-256 ; en cas d'absence de réseau, un `emm.exe` local reste utilisable. Il ne copie aucun fichier EML dans le dossier du jeu. Il lance `tasklist` et `emm.exe`.
 
 ## Installation sans l'installateur / Without the installer
 

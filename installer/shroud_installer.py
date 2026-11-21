@@ -2,7 +2,13 @@
 Interface française. Ne contient AUCUN fichier audio ni emm.exe : il utilise les archives téléchargées sur Nexus Mods
 (fichier principal = pages de journal ; compléments optionnels = répliques des personnages et narration d'introduction) et l'outil emm.exe d'EML (GitHub).
 Il trouve le jeu (Steam), les archives et emm.exe, décompresse le mod dans <jeu>\\mods\\ShroudInFrench, applique le patch
-(emm.exe run -p) ou restaure l'original. Aucun accès réseau ; rien n'est modifié hors du dossier du jeu."""
+(emm.exe run -p) ou restaure l'original. Accède à GitHub pour récupérer la dernière version de emm.exe ; rien n’est modifié hors du dossier du jeu et du cache EML du profil utilisateur."""
+# safe-modify v9 — 2026-11-21 — téléchargement automatique vérifié de la dernière version officielle de emm.exe.
+# safe-modify v10 — 2026-11-21 — ouverture maximisée pour garder les commandes du bas visibles.
+# safe-modify v12 — 2026-11-21 — fenêtre compacte fixe, sans maximisation.
+# safe-modify v13 — 2026-11-21 — largeur fixe portée à 860 px pour les cases de l’interface.
+# safe-modify v14 — 2026-11-21 — retour de la ligne d’état adapté à la largeur de la fenêtre.
+# safe-modify v11 — 2026-11-21 — cache EML hors-ligne utilisé seulement après contrôle d’empreinte.
 # safe-modify v8 — 2026-11-21 — bouton « Comment régler le jeu » déplacé dans une ligne dédiée pour rester visible.
 # safe-modify v7 — 2026-11-20 : état PNJ exact lors d'une mise à jour Intro seule.
 # safe-modify v6 — 2026-11-20 : mises à jour sélectives PNJ/Intro sans supprimer les autres dossiers VF.
@@ -10,11 +16,11 @@ Il trouve le jeu (Steam), les archives et emm.exe, décompresse le mod dans <jeu
 # safe-modify v4 — 2026-11-19 : mise à jour/désinstallation en reconstruisant le patch EML avec les autres mods.
 # v3 — 2026-11-19 : refuse aussi une mise à jour si la désinstallation préalable est bloquée.
 # v2 — 2026-11-19 : restauration contrôlée, retrait des caches/données EML et garde-fou pour les autres mods.
-import filecmp, json, os, re, shutil, subprocess, sys, threading, time, webbrowser, zipfile
+import filecmp, hashlib, json, os, re, shutil, subprocess, sys, threading, time, urllib.request, urllib.parse, webbrowser, zipfile
 import tkinter as tk
 from tkinter import filedialog, messagebox, scrolledtext, ttk
 
-VERSION = "2.3.2"
+VERSION = "2.3.6"
 APPID = "1203620"
 MOD_NAME = "ShroudInFrench"
 MOD_PREFIX = f"mods/{MOD_NAME}/"
@@ -22,6 +28,7 @@ INTRO_MOD_NAME = "ShroudInFrenchIntro"
 INTRO_PREFIX = f"mods/{INTRO_MOD_NAME}/"
 TESTED_BUILD = "26430625"   # build Steam testé (version interne du jeu : 1287369)
 EML_URL = "https://github.com/Brabb3l/kfc-parser/releases"
+EML_LATEST_API = "https://api.github.com/repos/Brabb3l/kfc-parser/releases/latest"
 COFFEE_URL = "https://buymeacoffee.com/shan_aya"
 BASE = os.path.dirname(os.path.abspath(sys.executable if getattr(sys, "frozen", False) else __file__))
 NOWIN = getattr(subprocess, "CREATE_NO_WINDOW", 0)
@@ -40,7 +47,7 @@ IMPORTANT
 
 CE QU'IL FAUT TÉLÉCHARGER
 - Sur Nexus Mods : le fichier principal « ShroudInFrench » (pages de journal), et en option « PNJ » (dialogues) et « Intro VF » (narration d'introduction). Laissez les .zip tels quels dans « Téléchargements » : l'installateur les trouve seul (sinon « Parcourir… »).
-- emm.exe (outil d'EML, par Brabb3l) : bouton « Où le télécharger ? » → GitHub → dernière version → « Assets » → emm.exe.
+- L'outil EML `emm.exe` est téléchargé et mis à jour automatiquement depuis la dernière release officielle GitHub. Une connexion Internet est nécessaire au premier lancement ou lorsqu'une nouvelle version sort. En cas d'indisponibilité, un `emm.exe` local reste utilisable.
 """
 
 
@@ -153,6 +160,110 @@ def emm_version(path):
     except Exception: return None
 
 
+
+def eml_cache_root():
+    """Return the EML cache in the user profile, outside the game folder."""
+    root = os.environ.get("LOCALAPPDATA") or os.path.expanduser("~")
+    return os.path.join(root, "ShroudInFrench", "EML")
+
+
+def download_latest_emm():
+    """Download emm.exe from the latest official EML release and verify SHA-256."""
+    request = urllib.request.Request(EML_LATEST_API, headers={
+        "Accept": "application/vnd.github+json",
+        "User-Agent": "ShroudInFrench-Installer",
+        "X-GitHub-Api-Version": "2022-11-28",
+    })
+    with urllib.request.urlopen(request, timeout=25) as response:
+        release = json.loads(response.read().decode("utf-8"))
+    tag = release.get("tag_name", "")
+    if not re.fullmatch(r"v[0-9]+\.[0-9]+\.[0-9]+", tag):
+        raise RuntimeError("invalid EML release tag")
+    asset = next((item for item in release.get("assets", []) if item.get("name") == "emm.exe"), None)
+    if not asset:
+        raise RuntimeError(f"emm.exe missing from EML release {tag}")
+    url = asset.get("browser_download_url", "")
+    parsed = urllib.parse.urlsplit(url)
+    if parsed.scheme != "https" or parsed.netloc != "github.com" or not parsed.path.startswith("/Brabb3l/kfc-parser/releases/download/"):
+        raise RuntimeError("unexpected EML download URL")
+    digest = asset.get("digest", "")
+    match = re.fullmatch(r"sha256:([0-9a-fA-F]{64})", digest)
+    size = asset.get("size")
+    if not match or not isinstance(size, int) or size < 5 * 2**20:
+        raise RuntimeError("official SHA-256 or emm.exe size unavailable")
+    expected = match.group(1).lower()
+    folder = os.path.join(eml_cache_root(), tag)
+    os.makedirs(folder, exist_ok=True)
+    target = os.path.join(folder, "emm.exe")
+
+    def valid_file(path):
+        if not os.path.isfile(path) or os.path.getsize(path) != size:
+            return False
+        h = hashlib.sha256()
+        with open(path, "rb") as stream:
+            for block in iter(lambda: stream.read(1 << 20), b""):
+                h.update(block)
+        return h.hexdigest() == expected and emm_version(path) is not None
+
+    if valid_file(target):
+        with open(target + ".sha256", "w", encoding="ascii") as sidecar:
+            sidecar.write(f"{expected} {size}")
+        return target, tag, False
+    part = target + ".part"
+    h = hashlib.sha256()
+    received = 0
+    try:
+        request = urllib.request.Request(url, headers={"User-Agent": "ShroudInFrench-Installer"})
+        with urllib.request.urlopen(request, timeout=30) as response, open(part, "wb") as output:
+            while True:
+                block = response.read(1 << 20)
+                if not block:
+                    break
+                received += len(block)
+                if received > size:
+                    raise RuntimeError("emm.exe exceeds the size announced by GitHub")
+                h.update(block)
+                output.write(block)
+        if received != size or h.hexdigest() != expected:
+            raise RuntimeError("emm.exe size or SHA-256 does not match GitHub")
+        os.replace(part, target)
+        if not emm_version(target):
+            os.remove(target)
+            raise RuntimeError("downloaded file is not a recognized emm.exe")
+        with open(target + ".sha256", "w", encoding="ascii") as sidecar:
+            sidecar.write(f"{expected} {size}")
+        return target, tag, True
+    finally:
+        try:
+            if os.path.exists(part):
+                os.remove(part)
+        except OSError:
+            pass
+
+
+def cached_emm():
+    """Return a cached EML executable only when its saved SHA-256 and size still match."""
+    root = eml_cache_root()
+    try:
+        tags = sorted(os.listdir(root), reverse=True)
+    except OSError:
+        return None
+    for tag in tags:
+        path = os.path.join(root, tag, "emm.exe")
+        try:
+            parts = open(path + ".sha256", encoding="ascii").read().split()
+            if len(parts) != 2 or os.path.getsize(path) != int(parts[1]):
+                continue
+            h = hashlib.sha256()
+            with open(path, "rb") as stream:
+                for block in iter(lambda: stream.read(1 << 20), b""):
+                    h.update(block)
+            if h.hexdigest() == parts[0].lower() and emm_version(path):
+                return path
+        except (OSError, ValueError):
+            continue
+    return None
+
 def find_emm(game=None):
     names = []
     for d in search_dirs(game):
@@ -161,7 +272,7 @@ def find_emm(game=None):
         except OSError: pass
     for p in names:
         if os.path.isfile(p) and os.path.getsize(p) > 5 * 2**20: return p
-    return None
+    return cached_emm()
 
 
 def safe_members(z):
@@ -182,8 +293,11 @@ class App(tk.Tk):
     def __init__(self):
         super().__init__()
         self.title(f"ShroudInFrench — installateur {VERSION}")
-        self.geometry("780x880"); self.minsize(700, 760)
-        self.game = None; self.busy = False; self.opt_pnj = True; self.opt_intro = True
+        sw, sh = self.winfo_screenwidth(), self.winfo_screenheight()
+        width, height = min(860, sw - 40), min(760, sh - 80)
+        self.geometry(f"{width}x{height}")
+        self.minsize(width, height); self.maxsize(width, height); self.resizable(False, False)
+        self.game = None; self.busy = False; self.emm_updating = False; self.opt_pnj = True; self.opt_intro = True
         try:   # bandeau (illustration + logo Shan_ayA) embarqué dans l'exe (assets\entete.png)
             base = getattr(sys, "_MEIPASS", BASE)
             self.img_header = tk.PhotoImage(file=os.path.join(base, "assets", "entete.png"))
@@ -197,7 +311,7 @@ class App(tk.Tk):
         ttk.Label(box, text="emm.exe (EML) :").grid(row=1, column=0, sticky="w", pady=2)
         ttk.Entry(box, textvariable=self.var_emm).grid(row=1, column=1, sticky="ew", padx=6)
         ttk.Button(box, text="Parcourir…", command=lambda: self.browse_file(self.var_emm, "emm.exe", [("emm.exe", "emm.exe"), ("Programmes", "*.exe")])).grid(row=1, column=2)
-        ttk.Button(box, text="Où le télécharger ?", command=lambda: webbrowser.open(EML_URL)).grid(row=1, column=3, padx=(6, 0))
+        ttk.Button(box, text="Récupérer EML", command=self.update_emm).grid(row=1, column=3, padx=(6, 0))
         ttk.Label(box, text="Fichier principal :").grid(row=2, column=0, sticky="w", pady=2)
         ttk.Entry(box, textvariable=self.var_main).grid(row=2, column=1, sticky="ew", padx=6)
         ttk.Button(box, text="Parcourir…", command=lambda: self.browse_file(self.var_main, "Archive principale « ShroudInFrench » (.zip)", [("Archives", "*.zip")])).grid(row=2, column=2)
@@ -207,7 +321,7 @@ class App(tk.Tk):
         ttk.Label(box, text="Complément Intro VF :").grid(row=4, column=0, sticky="w", pady=2)
         ttk.Entry(box, textvariable=self.var_introzip).grid(row=4, column=1, sticky="ew", padx=6)
         ttk.Button(box, text="Parcourir…", command=lambda: self.browse_file(self.var_introzip, "Archive optionnelle « Intro VF » (.zip)", [("Archives", "*.zip")])).grid(row=4, column=2)
-        self.lbl_status = ttk.Label(self, text="", padding=(10, 6), wraplength=740, justify="left"); self.lbl_status.pack(fill="x")
+        self.lbl_status = ttk.Label(self, text="", padding=(10, 6), wraplength=max(400, width - 40), justify="left"); self.lbl_status.pack(fill="x")
         # safe-modify v8: put help on a dedicated full-width row so it stays visible at normal window sizes.
         helpbar = ttk.Frame(self, padding=(10, 0, 10, 4)); helpbar.pack(fill="x")
         ttk.Button(helpbar, text="Comment régler le jeu", command=self.show_help).pack(side="left")
@@ -223,12 +337,13 @@ class App(tk.Tk):
         ttk.Label(foot, text="Mod gratuit, fait avec plaisir. Un petit café pour la suite ?").pack(side="left")
         ttk.Button(foot, text="☕ Payez-moi un café", command=lambda: webbrowser.open(COFFEE_URL)).pack(side="right")
         self.progress = ttk.Progressbar(self, mode="determinate"); self.progress.pack(fill="x", padx=10)
-        self.log = scrolledtext.ScrolledText(self, height=12, state="disabled", font=("Consolas", 9)); self.log.pack(fill="both", expand=True, padx=10, pady=10)
+        self.log = scrolledtext.ScrolledText(self, height=8, state="disabled", font=("Consolas", 9)); self.log.pack(fill="both", expand=True, padx=10, pady=10)
         g, b = find_game()
         if g: self.var_game.set(g); self.say(f"Jeu détecté : {g} (build {b})")
         else: self.say("Jeu non détecté automatiquement : utilisez « Parcourir… » pour choisir le dossier qui contient enshrouded.exe.")
         self.autodetect(g)
         self.refresh()
+        self.after(150, self.update_emm)
 
     # -- utilitaires d'interface
     def say(self, msg):
@@ -254,12 +369,42 @@ class App(tk.Tk):
         if not self.var_emm.get():
             p = find_emm(game)
             if p: self.var_emm.set(p); self.say(f"emm.exe trouvé : {p}")
-            else: self.say("emm.exe introuvable : téléchargez-le (bouton « Où le télécharger ? ») puis choisissez-le avec « Parcourir… ».")
+            else: self.say("emm.exe absent : recherche et téléchargement automatiques de la dernière version officielle d’EML…")
         a = find_archives(game)
         if a["main"] and not self.var_main.get(): self.var_main.set(a["main"]); self.say(f"Fichier principal trouvé : {a['main']}")
         if a["pnj"] and not self.var_pnjzip.get(): self.var_pnjzip.set(a["pnj"]); self.say(f"Complément PNJ trouvé : {a['pnj']}")
         if a["intro"] and not self.var_introzip.get(): self.var_introzip.set(a["intro"]); self.say(f"Complément Intro VF trouvé : {a['intro']}")
         if not a["main"] and not self.var_main.get(): self.say("Fichier principal (.zip) non trouvé dans Téléchargements / Bureau : téléchargez-le sur Nexus Mods, ou choisissez-le avec « Parcourir… ».")
+
+    def update_emm(self):
+        """Récupère en arrière-plan le emm.exe de la dernière release officielle EML."""
+        if self.emm_updating:
+            return
+        self.emm_updating = True
+        existing = self.var_emm.get().strip()
+        self.say("Vérification de la dernière version EML sur GitHub…")
+
+        def worker():
+            try:
+                path, tag, downloaded = download_latest_emm()
+                message = f"emm.exe EML {tag} " + ("téléchargé et vérifié (SHA-256)." if downloaded else "déjà à jour (SHA-256 vérifié).")
+            except Exception as exc:
+                path = existing if existing and os.path.isfile(existing) else find_emm(self.game)
+                if path and emm_version(path):
+                    message = f"GitHub indisponible ({exc}) ; utilisation du emm.exe local : {path}"
+                else:
+                    path = ""
+                    message = f"Téléchargement EML impossible : {exc}. Vérifiez la connexion ou choisissez emm.exe avec « Parcourir… »."
+
+            def finish():
+                if path:
+                    self.var_emm.set(path)
+                self.emm_updating = False
+                self.say(message)
+                self.refresh()
+            self.after(0, finish)
+
+        threading.Thread(target=worker, daemon=True).start()
 
     def state_path(self, game): return os.path.join(game, "vf_install.json")
     def installed(self, game): return os.path.isfile(self.state_path(game))
@@ -303,7 +448,8 @@ class App(tk.Tk):
         self.refresh()
         if not self.game: messagebox.showwarning("ShroudInFrench", "Choisissez d'abord le dossier du jeu."); return
         if game_running(): messagebox.showwarning("ShroudInFrench", "Enshrouded est lancé. Fermez le jeu complètement puis réessayez."); return
-        if not os.path.isfile(self.var_emm.get().strip()): messagebox.showerror("ShroudInFrench", "emm.exe (EML) est introuvable.\nUtilisez « Où le télécharger ? », puis « Parcourir… »."); return
+        if self.emm_updating: messagebox.showinfo("ShroudInFrench", "Attendez la fin de la vérification ou du téléchargement d’EML."); return
+        if not os.path.isfile(self.var_emm.get().strip()): messagebox.showerror("ShroudInFrench", "emm.exe (EML) est introuvable.\nVérifiez la connexion ou choisissez-le avec « Parcourir… »."); return
         self.opt_pnj = bool(self.var_pnj.get())
         self.opt_intro = bool(self.var_intro.get())
         self.emm_path = self.var_emm.get().strip(); self.zip_main = self.var_main.get().strip(); self.zip_pnj = self.var_pnjzip.get().strip(); self.zip_intro = self.var_introzip.get().strip()
