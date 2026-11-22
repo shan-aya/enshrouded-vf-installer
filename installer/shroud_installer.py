@@ -3,6 +3,7 @@ Interface française. Ne contient AUCUN fichier audio ni emm.exe : il utilise le
 (fichier principal = pages de journal + narration d'introduction ; complément optionnel = répliques des personnages) et l'outil emm.exe d'EML (GitHub).
 Il trouve le jeu (Steam), les archives et emm.exe, décompresse le mod dans <jeu>\\mods\\ShroudInFrench, applique le patch
 (emm.exe run -p) ou restaure l'original. Accède à GitHub pour récupérer la dernière version de emm.exe ; rien n’est modifié hors du dossier du jeu et du cache EML du profil utilisateur."""
+# safe-modify v16 — 2026-11-22 — fenêtre ancrée en haut et adaptée à l'écran (agrandissement Windows 250 % : bas de l'application masqué).
 # safe-modify v15 — 2026-11-22 — l'intro est incluse dans l'archive principale (un seul dossier ShroudInFrench) ; l'ancien complément « ShroudInFrenchIntro » est retiré à la mise à jour.
 # safe-modify v9 — 2026-11-21 — téléchargement automatique vérifié de la dernière version officielle de emm.exe.
 # safe-modify v10 — 2026-11-21 — ouverture maximisée pour garder les commandes du bas visibles.
@@ -21,7 +22,7 @@ import filecmp, hashlib, json, os, re, shutil, subprocess, sys, threading, time,
 import tkinter as tk
 from tkinter import filedialog, messagebox, scrolledtext, ttk
 
-VERSION = "2.4.0"
+VERSION = "2.4.1"
 APPID = "1203620"
 MOD_NAME = "ShroudInFrench"
 MOD_PREFIX = f"mods/{MOD_NAME}/"
@@ -295,14 +296,14 @@ class App(tk.Tk):
         super().__init__()
         self.title(f"ShroudInFrench — installateur {VERSION}")
         sw, sh = self.winfo_screenwidth(), self.winfo_screenheight()
-        width, height = min(860, sw - 40), min(760, sh - 80)
-        self.geometry(f"{width}x{height}")
-        self.minsize(width, height); self.maxsize(width, height); self.resizable(False, False)
+        width = min(860, sw - 24)
+        self.geometry(f"{width}x{min(760, sh - 96)}+{max(0, (sw - width) // 2)}+4")    # ancrée en haut de l'écran ; ajustée ensuite par fit_window()
+        self.header_label = None
         self.game = None; self.busy = False; self.emm_updating = False; self.opt_pnj = True
         try:   # bandeau (illustration + logo Shan_ayA) embarqué dans l'exe (assets\entete.png)
             base = getattr(sys, "_MEIPASS", BASE)
             self.img_header = tk.PhotoImage(file=os.path.join(base, "assets", "entete.png"))
-            tk.Label(self, image=self.img_header, borderwidth=0).pack(pady=(10, 0))
+            self.header_label = tk.Label(self, image=self.img_header, borderwidth=0); self.header_label.pack(pady=(10, 0))
         except Exception: pass
         box = ttk.Frame(self, padding=(10, 8, 10, 0)); box.pack(fill="x"); box.columnconfigure(1, weight=1)
         self.var_game, self.var_emm, self.var_main, self.var_pnjzip = (tk.StringVar() for _ in range(4))
@@ -334,12 +335,34 @@ class App(tk.Tk):
         ttk.Button(foot, text="☕ Payez-moi un café", command=lambda: webbrowser.open(COFFEE_URL)).pack(side="right")
         self.progress = ttk.Progressbar(self, mode="determinate"); self.progress.pack(fill="x", padx=10)
         self.log = scrolledtext.ScrolledText(self, height=8, state="disabled", font=("Consolas", 9)); self.log.pack(fill="both", expand=True, padx=10, pady=10)
+        self.fit_window()
         g, b = find_game()
         if g: self.var_game.set(g); self.say(f"Jeu détecté : {g} (build {b})")
         else: self.say("Jeu non détecté automatiquement : utilisez « Parcourir… » pour choisir le dossier qui contient enshrouded.exe.")
         self.autodetect(g)
         self.refresh()
         self.after(150, self.update_emm)
+
+    def fit_window(self):
+        """Adapte la fenêtre à l'écran : avec un agrandissement Windows de 200-250 %, l'écran « logique » est petit (ex. 1536×864, voire moins) et une fenêtre
+        fixe de 760 px débordait en bas, sans être ancrée en haut. On ancre la fenêtre en haut, on réduit le bandeau puis le journal si besoin,
+        et la fenêtre reste redimensionnable."""
+        sw, sh = self.winfo_screenwidth(), self.winfo_screenheight()
+        avail_w, avail_h = sw - 24, sh - 96                     # barre des tâches + barre de titre
+        width = min(860, avail_w)
+        self.lbl_status.configure(wraplength=max(300, width - 40))
+        steps = [lambda: None,
+                 lambda: self.header_label.pack_forget() if self.header_label else None,
+                 lambda: self.log.configure(height=4),
+                 lambda: self.log.configure(height=2)]
+        used = 0
+        for used, step in enumerate(steps):
+            step(); self.update_idletasks()
+            if self.winfo_reqheight() <= avail_h: break
+        height = min(self.winfo_reqheight(), avail_h)
+        if used == 0: height = min(max(height, 760), avail_h)      # écran normal : hauteur habituelle (le journal prend l'espace libre)
+        self.geometry(f"{width}x{height}+{max(0, (sw - width) // 2)}+4")
+        self.minsize(min(width, 560), min(height, 260)); self.resizable(True, True)
 
     # -- utilitaires d'interface
     def say(self, msg):
@@ -716,7 +739,8 @@ class App(tk.Tk):
         return True
 
     def show_help(self):
-        w = tk.Toplevel(self); w.title("Comment régler le jeu"); w.geometry("640x520")
+        sw, sh = self.winfo_screenwidth(), self.winfo_screenheight()
+        w = tk.Toplevel(self); w.title("Comment régler le jeu"); w.geometry(f"{min(640, sw - 24)}x{min(520, sh - 96)}+{max(0, (sw - min(640, sw - 24)) // 2)}+4")
         t = scrolledtext.ScrolledText(w, wrap="word", font=("Segoe UI", 10)); t.pack(fill="both", expand=True)
         t.insert("1.0", HELP); t.configure(state="disabled")
 
