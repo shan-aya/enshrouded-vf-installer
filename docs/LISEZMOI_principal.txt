@@ -1,7 +1,7 @@
 ShroudInFrench — voix françaises (VF) / French voice-over
 ========================================================
 
-EN : French voice-over for Enshrouded (journal pages; NPC lines and the intro narration are optional). Needs the Enshrouded Mod Loader (EML) proxy DLL: download dbghelp.dll from https://github.com/Brabb3l/kfc-parser/releases (Assets), put it next to enshrouded.exe, extract this archive and any optional files into the game folder, then just launch the game. In game: Options > GAME > Voice language > "Français (VF)" (it replaces the Chinese slot).
+EN : French voice-over for Enshrouded (journal pages and intro narration; NPC lines are optional). Needs the Enshrouded Mod Loader (EML) proxy DLL: download dbghelp.dll from https://github.com/Brabb3l/kfc-parser/releases (Assets), put it next to enshrouded.exe, extract this archive and any optional files into the game folder, then just launch the game. In game: Options > GAME > Voice language > "Français (VF)" (it replaces the Chinese slot).
 
 FR : voici le détail.
 
@@ -21,7 +21,7 @@ INSTALLER (méthode recommandée : sans ligne de commande)
 4. Copiez « dbghelp.dll » dans ce dossier (à côté de enshrouded.exe).
 5. Décompressez cette archive dans ce même dossier : elle crée « mods\ShroudInFrench\ ».
    (Optionnel : décompressez « PNJ » dans le même dossier du jeu : ses fichiers rejoignent mods\ShroudInFrench.)
-   (Optionnel : décompressez « Intro VF » dans le même dossier du jeu : elle crée mods\ShroudInFrenchIntro\, un complément indépendant.)
+   (Optionnel : faites de même avec le fichier « PNJ » pour la voix des personnages. La narration de l'intro est déjà incluse dans le fichier principal depuis la 2.3.0 ; si vous aviez l'ancien complément « Intro VF », supprimez mods\ShroudInFrenchIntro\ — l'installateur le fait tout seul.)
 6. Lancez Enshrouded normalement (Steam). Au premier lancement, EML applique le patch tout seul (quelques secondes, un fichier « enshrouded_055.dat » d'environ 750 Mo est créé dans le dossier du jeu). Aucune autre action.
 7. Dans le jeu : Options → onglet JEU → « Langue du doublage » → « Français (VF) » (dernier choix de la liste).
    Pour que les pages de journal se lisent seules : « Lire automatiquement les notes sur l'univers » → « Toujours jouer ».
@@ -37,7 +37,7 @@ Si Windows affiche « Windows a protégé votre ordinateur » à l'ouverture de 
 
 DÉSINSTALLER
 ------------
-1. Fermez le jeu. Supprimez mods\ShroudInFrench et, si installé, mods\ShroudInFrenchIntro (et dbghelp.dll si vous ne voulez plus d'EML).
+1. Fermez le jeu. Supprimez mods\ShroudInFrench et, s'il existe encore (ancienne version), mods\ShroudInFrenchIntro (et dbghelp.dll si vous ne voulez plus d'EML).
 2. Pour retrouver exactement le jeu d'origine : Steam → clic droit sur Enshrouded → Propriétés → Fichiers installés → « Vérifier l'intégrité des fichiers du jeu » (Steam restaure l'index modifié). Vous pouvez ensuite supprimer « enshrouded_055.dat ».
    (Avec la méthode emm.exe : « emm.exe restore -g "<dossier du jeu>" » suffit.)
 Les fichiers d'origine des voix ne sont jamais modifiés : seul l'index enshrouded.kfc l'est.
@@ -56,7 +56,7 @@ EN CAS DE PROBLÈME
 CE QUE FAIT LE MOD / LIMITES
 ----------------------------
 - 525 pages de journal doublées en français ; les répliques des personnages (1170) sont dans le fichier optionnel « PNJ » (sans lui, elles restent en anglais).
-- La narration de l'introduction est proposée séparément dans le fichier optionnel « Intro VF » ; sans ce complément, l'intro reste en chinois quand « Français (VF) » est sélectionné.
+- La narration de l'introduction est incluse dans le fichier principal (depuis la 2.3.0) : « Français (VF) » remplace aussi la narration chinoise de l'intro.
 - Les voix sont générées par synthèse vocale (XTTS-v2) à partir des voix anglaises du jeu : même timbre, ton proche. Les interjections (« Ah », « Hmm »…), les cris et les répliques sans texte retrouvé restent en anglais.
 - « Français (VF) » prend la place de « Chinois » dans la liste de la langue du doublage : les voix chinoises ne sont plus accessibles tant que le mod est installé. Anglais et allemand ne changent pas.
 

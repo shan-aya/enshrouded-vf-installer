@@ -1,8 +1,9 @@
 """Installateur LÉGER de la VF d'Enshrouded (voix françaises, emplacement « Français (VF) » du menu Langue du doublage).
 Interface française. Ne contient AUCUN fichier audio ni emm.exe : il utilise les archives téléchargées sur Nexus Mods
-(fichier principal = pages de journal ; compléments optionnels = répliques des personnages et narration d'introduction) et l'outil emm.exe d'EML (GitHub).
+(fichier principal = pages de journal + narration d'introduction ; complément optionnel = répliques des personnages) et l'outil emm.exe d'EML (GitHub).
 Il trouve le jeu (Steam), les archives et emm.exe, décompresse le mod dans <jeu>\\mods\\ShroudInFrench, applique le patch
 (emm.exe run -p) ou restaure l'original. Accède à GitHub pour récupérer la dernière version de emm.exe ; rien n’est modifié hors du dossier du jeu et du cache EML du profil utilisateur."""
+# safe-modify v15 — 2026-11-22 — l'intro est incluse dans l'archive principale (un seul dossier ShroudInFrench) ; l'ancien complément « ShroudInFrenchIntro » est retiré à la mise à jour.
 # safe-modify v9 — 2026-11-21 — téléchargement automatique vérifié de la dernière version officielle de emm.exe.
 # safe-modify v10 — 2026-11-21 — ouverture maximisée pour garder les commandes du bas visibles.
 # safe-modify v12 — 2026-11-21 — fenêtre compacte fixe, sans maximisation.
@@ -20,12 +21,13 @@ import filecmp, hashlib, json, os, re, shutil, subprocess, sys, threading, time,
 import tkinter as tk
 from tkinter import filedialog, messagebox, scrolledtext, ttk
 
-VERSION = "2.3.6"
+VERSION = "2.4.0"
 APPID = "1203620"
 MOD_NAME = "ShroudInFrench"
 MOD_PREFIX = f"mods/{MOD_NAME}/"
 INTRO_MOD_NAME = "ShroudInFrenchIntro"
-INTRO_PREFIX = f"mods/{INTRO_MOD_NAME}/"
+INTRO_PREFIX = f"mods/{INTRO_MOD_NAME}/"      # ancien complément séparé : seulement pour le nettoyer
+INTRO_AUDIO = "intro_fr_damien_stereo.fqoa"   # narration de l'intro, incluse dans le fichier principal depuis la 2.3.0
 TESTED_BUILD = "26430625"   # build Steam testé (version interne du jeu : 1287369)
 EML_URL = "https://github.com/Brabb3l/kfc-parser/releases"
 EML_LATEST_API = "https://api.github.com/repos/Brabb3l/kfc-parser/releases/latest"
@@ -46,7 +48,7 @@ IMPORTANT
 - Si l'installateur dit que la sauvegarde est périmée : Steam → clic droit sur Enshrouded → Propriétés → Fichiers installés → « Vérifier l'intégrité des fichiers du jeu », puis relancez l'installateur.
 
 CE QU'IL FAUT TÉLÉCHARGER
-- Sur Nexus Mods : le fichier principal « ShroudInFrench » (pages de journal), et en option « PNJ » (dialogues) et « Intro VF » (narration d'introduction). Laissez les .zip tels quels dans « Téléchargements » : l'installateur les trouve seul (sinon « Parcourir… »).
+- Sur Nexus Mods : le fichier principal « ShroudInFrench » (pages de journal et narration d'introduction), et en option « PNJ » (dialogues). Laissez les .zip tels quels dans « Téléchargements » : l'installateur les trouve seul (sinon « Parcourir… »).
 - L'outil EML `emm.exe` est téléchargé et mis à jour automatiquement depuis la dernière release officielle GitHub. Une connexion Internet est nécessaire au premier lancement ou lorsqu'une nouvelle version sort. En cas d'indisponibilité, un `emm.exe` local reste utilisable.
 """
 
@@ -126,12 +128,11 @@ def search_dirs(game=None):
 
 
 def zip_kind(path):
-    """Reconnaît le principal, le complément PNJ ou le complément Intro par le contenu du zip."""
+    """Reconnaît le principal ou le complément PNJ par le contenu du zip (l'ancien complément Intro séparé n'est plus utilisé)."""
     try:
         with zipfile.ZipFile(path) as z:
             names = z.namelist()
     except (zipfile.BadZipFile, OSError): return None
-    if INTRO_PREFIX + "mod.json" in names: return "intro"
     if MOD_PREFIX + "mod.json" in names: return "main"
     if any(n.startswith(MOD_PREFIX + "n") and n.endswith(".fqoa") for n in names): return "pnj"
     return None
@@ -139,7 +140,7 @@ def zip_kind(path):
 
 def find_archives(game=None):
     """Cherche dans Téléchargements, Bureau, dossier de l'installateur et du jeu les .zip de la VF (reconnus par leur contenu, pas par leur nom : Nexus renomme les fichiers)."""
-    found = {"main": None, "pnj": None, "intro": None}; cands = []
+    found = {"main": None, "pnj": None}; cands = []
     for d in search_dirs(game):
         try:
             for f in os.listdir(d):
@@ -279,7 +280,7 @@ def safe_members(z):
     """N'accepte que le dossier correspondant au type d'archive, sans traversal."""
     out = []
     names = {i.filename.replace("\\", "/") for i in z.infolist()}
-    prefix = INTRO_PREFIX if INTRO_PREFIX + "mod.json" in names else MOD_PREFIX
+    prefix = MOD_PREFIX
     for i in z.infolist():
         n = i.filename.replace("\\", "/")
         if i.is_dir(): continue
@@ -297,14 +298,14 @@ class App(tk.Tk):
         width, height = min(860, sw - 40), min(760, sh - 80)
         self.geometry(f"{width}x{height}")
         self.minsize(width, height); self.maxsize(width, height); self.resizable(False, False)
-        self.game = None; self.busy = False; self.emm_updating = False; self.opt_pnj = True; self.opt_intro = True
+        self.game = None; self.busy = False; self.emm_updating = False; self.opt_pnj = True
         try:   # bandeau (illustration + logo Shan_ayA) embarqué dans l'exe (assets\entete.png)
             base = getattr(sys, "_MEIPASS", BASE)
             self.img_header = tk.PhotoImage(file=os.path.join(base, "assets", "entete.png"))
             tk.Label(self, image=self.img_header, borderwidth=0).pack(pady=(10, 0))
         except Exception: pass
         box = ttk.Frame(self, padding=(10, 8, 10, 0)); box.pack(fill="x"); box.columnconfigure(1, weight=1)
-        self.var_game, self.var_emm, self.var_main, self.var_pnjzip, self.var_introzip = (tk.StringVar() for _ in range(5))
+        self.var_game, self.var_emm, self.var_main, self.var_pnjzip = (tk.StringVar() for _ in range(4))
         ttk.Label(box, text="Dossier du jeu :").grid(row=0, column=0, sticky="w", pady=2)
         ttk.Entry(box, textvariable=self.var_game).grid(row=0, column=1, sticky="ew", padx=6)
         ttk.Button(box, text="Parcourir…", command=lambda: self.browse_dir(self.var_game, "Dossier d'Enshrouded (celui qui contient enshrouded.exe)")).grid(row=0, column=2)
@@ -318,9 +319,6 @@ class App(tk.Tk):
         ttk.Label(box, text="Complément PNJ :").grid(row=3, column=0, sticky="w", pady=2)
         ttk.Entry(box, textvariable=self.var_pnjzip).grid(row=3, column=1, sticky="ew", padx=6)
         ttk.Button(box, text="Parcourir…", command=lambda: self.browse_file(self.var_pnjzip, "Archive optionnelle « PNJ » (.zip)", [("Archives", "*.zip")])).grid(row=3, column=2)
-        ttk.Label(box, text="Complément Intro VF :").grid(row=4, column=0, sticky="w", pady=2)
-        ttk.Entry(box, textvariable=self.var_introzip).grid(row=4, column=1, sticky="ew", padx=6)
-        ttk.Button(box, text="Parcourir…", command=lambda: self.browse_file(self.var_introzip, "Archive optionnelle « Intro VF » (.zip)", [("Archives", "*.zip")])).grid(row=4, column=2)
         self.lbl_status = ttk.Label(self, text="", padding=(10, 6), wraplength=max(400, width - 40), justify="left"); self.lbl_status.pack(fill="x")
         # safe-modify v8: put help on a dedicated full-width row so it stays visible at normal window sizes.
         helpbar = ttk.Frame(self, padding=(10, 0, 10, 4)); helpbar.pack(fill="x")
@@ -331,8 +329,6 @@ class App(tk.Tk):
         ttk.Button(bt, text="Vérifier", command=self.refresh).pack(side="left")
         self.var_pnj = tk.BooleanVar(value=True)
         ttk.Checkbutton(bt, text="Répliques de personnages (PNJ)", variable=self.var_pnj).pack(side="left", padx=16)
-        self.var_intro = tk.BooleanVar(value=True)
-        ttk.Checkbutton(bt, text="Narration de l'intro", variable=self.var_intro).pack(side="left", padx=8)
         foot = ttk.Frame(self); foot.pack(side="bottom", fill="x", padx=10, pady=(0, 8))      # pied de fenêtre (packé avant le journal pour rester visible)
         ttk.Label(foot, text="Mod gratuit, fait avec plaisir. Un petit café pour la suite ?").pack(side="left")
         ttk.Button(foot, text="☕ Payez-moi un café", command=lambda: webbrowser.open(COFFEE_URL)).pack(side="right")
@@ -373,7 +369,6 @@ class App(tk.Tk):
         a = find_archives(game)
         if a["main"] and not self.var_main.get(): self.var_main.set(a["main"]); self.say(f"Fichier principal trouvé : {a['main']}")
         if a["pnj"] and not self.var_pnjzip.get(): self.var_pnjzip.set(a["pnj"]); self.say(f"Complément PNJ trouvé : {a['pnj']}")
-        if a["intro"] and not self.var_introzip.get(): self.var_introzip.set(a["intro"]); self.say(f"Complément Intro VF trouvé : {a['intro']}")
         if not a["main"] and not self.var_main.get(): self.say("Fichier principal (.zip) non trouvé dans Téléchargements / Bureau : téléchargez-le sur Nexus Mods, ou choisissez-le avec « Parcourir… ».")
 
     def update_emm(self):
@@ -436,11 +431,12 @@ class App(tk.Tk):
         if game_running(): parts.append("⚠ le jeu est lancé : fermez-le avant d'installer ou de désinstaller")
         emm = self.var_emm.get().strip()
         parts.append("emm.exe ✔" if os.path.isfile(emm) else "⚠ emm.exe manquant")
-        m, p, intro = self.var_main.get().strip(), self.var_pnjzip.get().strip(), self.var_introzip.get().strip()
+        m, p = self.var_main.get().strip(), self.var_pnjzip.get().strip()
         has_mod = os.path.isfile(os.path.join(self.mod_dir(game), "mod.json"))
         parts.append("principal ✔" if os.path.isfile(m) else ("principal : déjà dans le jeu ✔" if has_mod else "⚠ fichier principal manquant"))
         parts.append("PNJ ✔" if os.path.isfile(p) else "PNJ : absent (optionnel)")
-        parts.append("intro ✔" if os.path.isfile(intro) else ("intro : déjà installée ✔" if os.path.isfile(os.path.join(self.intro_mod_dir(game), "mod.json")) else "intro : absente (optionnelle)"))
+        if os.path.isdir(self.intro_mod_dir(game)): parts.append("ancien complément Intro détecté : il sera retiré à l'installation (l'intro est dans le fichier principal)")
+        elif has_mod and not os.path.isfile(os.path.join(self.mod_dir(game), INTRO_AUDIO)): parts.append("⚠ intro absente : utilisez le fichier principal 2.3.0 ou plus récent")
         self.lbl_status.configure(text="  —  ".join(parts))
 
     def run(self, fn):
@@ -451,8 +447,7 @@ class App(tk.Tk):
         if self.emm_updating: messagebox.showinfo("ShroudInFrench", "Attendez la fin de la vérification ou du téléchargement d’EML."); return
         if not os.path.isfile(self.var_emm.get().strip()): messagebox.showerror("ShroudInFrench", "emm.exe (EML) est introuvable.\nVérifiez la connexion ou choisissez-le avec « Parcourir… »."); return
         self.opt_pnj = bool(self.var_pnj.get())
-        self.opt_intro = bool(self.var_intro.get())
-        self.emm_path = self.var_emm.get().strip(); self.zip_main = self.var_main.get().strip(); self.zip_pnj = self.var_pnjzip.get().strip(); self.zip_intro = self.var_introzip.get().strip()
+        self.emm_path = self.var_emm.get().strip(); self.zip_main = self.var_main.get().strip(); self.zip_pnj = self.var_pnjzip.get().strip()
         self.busy = True; self.btn_install.state(["disabled"]); self.btn_uninstall.state(["disabled"])
         def work():
             try: fn(self.game)
@@ -480,21 +475,28 @@ class App(tk.Tk):
 
     # -- installation
     def do_install(self, game):
-        main, pnjz, introzip = self.zip_main, self.zip_pnj, self.zip_intro
-        have_main_zip, have_pnj_zip, have_intro_zip = os.path.isfile(main), os.path.isfile(pnjz), os.path.isfile(introzip)
+        main, pnjz = self.zip_main, self.zip_pnj
+        have_main_zip, have_pnj_zip = os.path.isfile(main), os.path.isfile(pnjz)
         mod_dst = self.mod_dir(game); pre_existing = os.path.isfile(os.path.join(mod_dst, "mod.json")) and not self.installed(game)
         intro_dst = self.intro_mod_dir(game)
         if not have_main_zip and not pre_existing and not self.installed(game):
             self.say("Fichier principal introuvable : téléchargez « ShroudInFrench » sur Nexus Mods (ou choisissez le .zip avec « Parcourir… »)."); return
         if have_main_zip and zip_kind(main) != "main": self.say("Le fichier choisi comme « principal » n'est pas l'archive principale de la VF."); return
         if have_pnj_zip and zip_kind(pnjz) != "pnj": self.say("Le fichier choisi comme « PNJ » n'est pas l'archive des répliques de personnages."); return
-        if have_intro_zip and zip_kind(introzip) != "intro": self.say("Le fichier choisi comme « Intro VF » n'est pas l'archive optionnelle de l'introduction."); return
         use_pnj = self.opt_pnj
         pnj_present = os.path.isdir(mod_dst) and any(f.startswith("n") and f.endswith(".fqoa") for f in os.listdir(mod_dst))
         self.say("Répliques de personnages (PNJ) : " + ("incluses." if use_pnj and (have_pnj_zip or pnj_present) else ("demandées mais fichier PNJ absent : pages de journal seules." if use_pnj else "NON incluses (pages de journal seules).")))
-        use_intro = self.opt_intro
-        self.say("Narration de l'intro : " + ("incluse." if use_intro and have_intro_zip else ("déjà installée et conservée." if use_intro and os.path.isfile(os.path.join(intro_dst, "mod.json")) else ("demandée mais archive absente." if use_intro else "NON incluse."))))
-        zips = ([main] if have_main_zip else []) + ([pnjz] if (use_pnj and have_pnj_zip) else []) + ([introzip] if (use_intro and have_intro_zip) else [])
+        # L'intro est dans le fichier principal (>= 2.3.0). L'ancien dossier mods\ShroudInFrenchIntro est retiré (sauvegardé le temps de l'installation,
+        # restauré en cas d'échec) uniquement si le principal installé contient l'intro : sinon on le laisse en place.
+        main_has_intro = False
+        if have_main_zip:
+            try:
+                with zipfile.ZipFile(main) as zm: main_has_intro = (MOD_PREFIX + INTRO_AUDIO) in {n.replace("\\", "/") for n in zm.namelist()}
+            except (zipfile.BadZipFile, OSError): main_has_intro = False
+        elif os.path.isfile(os.path.join(mod_dst, INTRO_AUDIO)): main_has_intro = True
+        migrate_intro = os.path.isdir(intro_dst) and main_has_intro
+        self.say("Narration de l'intro : " + ("incluse dans le fichier principal." + (" L'ancien complément Intro séparé sera retiré." if migrate_intro else "") if main_has_intro else "ABSENTE de ce fichier principal (utilisez la version 2.3.0 ou plus récente)" + (" ; l'ancien complément Intro est conservé." if os.path.isdir(intro_dst) else ".")))
+        zips = ([main] if have_main_zip else []) + ([pnjz] if (use_pnj and have_pnj_zip) else [])
         total = 0
         for zp in zips:
             with zipfile.ZipFile(zp) as z: total += sum(i.file_size for i in safe_members(z))
@@ -503,7 +505,7 @@ class App(tk.Tk):
         if free < need: self.say(f"Espace disque insuffisant : {free // 2**20} Mo libres, {need // 2**20} Mo nécessaires."); return
         # Une archive optionnelle ne doit jamais effacer les autres composants déjà installés.
         # Le dossier journal/PNJ est modifié uniquement si l'archive principale/PNJ change
-        # ou si la case PNJ est décochée ; l'intro reste indépendante.
+        # ou si la case PNJ est décochée.
         mod_touched = have_main_zip or (use_pnj and have_pnj_zip) or not use_pnj
         old_state = {}
         old_mod_backup = None
@@ -523,7 +525,7 @@ class App(tk.Tk):
                 self.say("Mise à jour arrêtée : un dossier de sauvegarde temporaire existe déjà.")
                 return
             shutil.move(mod_dst, old_mod_backup)
-        if os.path.isdir(intro_dst) and (have_intro_zip or not use_intro):
+        if migrate_intro:
             old_intro_backup = os.path.join(game, f".ShroudInFrenchIntro_update_{int(time.time())}")
             if os.path.exists(old_intro_backup):
                 if old_mod_backup: shutil.move(old_mod_backup, mod_dst)
@@ -549,8 +551,6 @@ class App(tk.Tk):
                     for f in os.listdir(old_mod_backup):
                         if f.startswith("n") and f.endswith(".fqoa"):
                             shutil.copy2(os.path.join(old_mod_backup, f), os.path.join(mod_dst, f))
-                if use_intro and have_intro_zip:
-                    done = self.extract(introzip, game, done, total)
             elif mod_touched and old_mod_backup and os.path.isdir(old_mod_backup):
                 shutil.copytree(old_mod_backup, mod_dst)
             if not use_pnj:  # PNJ décochés : retirer les voix optionnelles du paquet installé.
@@ -561,8 +561,6 @@ class App(tk.Tk):
             if mod_touched: shutil.rmtree(mod_dst, ignore_errors=True)
             if old_mod_backup:
                 shutil.move(old_mod_backup, mod_dst)
-            if (have_intro_zip or not use_intro) and os.path.isdir(intro_dst):
-                shutil.rmtree(intro_dst, ignore_errors=True)
             if old_intro_backup:
                 shutil.move(old_intro_backup, intro_dst)
             if old_mod_backup or self.other_eml_mods(game):
@@ -574,7 +572,6 @@ class App(tk.Tk):
         if not ok:
             self.say("Le patch a échoué. Détail :\n" + out[-1500:])
             if mod_touched: shutil.rmtree(mod_dst, ignore_errors=True)
-            if os.path.isdir(intro_dst) and (have_intro_zip or not use_intro): shutil.rmtree(intro_dst, ignore_errors=True)
             if old_mod_backup:
                 os.makedirs(os.path.dirname(mod_dst), exist_ok=True)
                 shutil.move(old_mod_backup, mod_dst)
@@ -600,7 +597,7 @@ class App(tk.Tk):
         with open(self.state_path(game), "w", encoding="utf-8") as sf:
             json.dump(dict(date=time.strftime("%Y-%m-%d %H:%M:%S"), version=VERSION,
                            build=game_build(game), patches=patch_count,
-                           pnj=bool(use_pnj and os.path.isdir(mod_dst) and any(f.startswith("n") and f.endswith(".fqoa") for f in os.listdir(mod_dst))), intro=bool(use_intro and os.path.isfile(os.path.join(intro_dst, "mod.json"))), dat_changed=tracked_dat,
+                           pnj=bool(use_pnj and os.path.isdir(mod_dst) and any(f.startswith("n") and f.endswith(".fqoa") for f in os.listdir(mod_dst))), intro=bool(os.path.isfile(os.path.join(mod_dst, INTRO_AUDIO))), dat_changed=tracked_dat,
                            dat_cleanup_safe=dat_cleanup_safe), sf, indent=1)
         if old_mod_backup: shutil.rmtree(old_mod_backup, ignore_errors=True)
         if old_intro_backup: shutil.rmtree(old_intro_backup, ignore_errors=True)

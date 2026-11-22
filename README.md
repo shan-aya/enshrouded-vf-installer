@@ -5,8 +5,8 @@ v1 -- version de base sauvegardée.
 -->
 # enshrouded-vf-installer
 
-**FR** — Code source de l'installateur du mod **ShroudInFrench**, des voix françaises pour *Enshrouded* (525 pages de journal, 1 170 répliques de personnages en option, et narration d'introduction en option).
-**EN** — Source code of the installer for **ShroudInFrench**, a French voice-over mod for *Enshrouded* (525 journal pages, 1,170 optional NPC lines, and an optional French intro narration).
+**FR** — Code source de l'installateur du mod **ShroudInFrench**, des voix françaises pour *Enshrouded* (525 pages de journal et narration d'introduction dans le fichier principal, 1 170 répliques de personnages en option).
+**EN** — Source code of the installer for **ShroudInFrench**, a French voice-over mod for *Enshrouded* (525 journal pages and the intro narration in the main file, 1,170 optional NPC lines).
 
 Ce dépôt **ne contient ni les fichiers audio du mod, ni `emm.exe`** : l'installateur utilise les archives téléchargées sur Nexus Mods et l'outil `emm.exe` d'EML. Il sert à vérifier ce que fait l'installateur et à le recompiler. / This repository contains **neither the mod's audio files nor `emm.exe`**; the installer uses the archives downloaded from Nexus Mods and EML's `emm.exe`.
 
@@ -17,13 +17,13 @@ Fenêtre Tk (Python, interface en français). Tout est dans [`installer/shroud_i
 1. **Détecte le jeu** : registre Steam + `libraryfolders.vdf` + `appmanifest_1203620.acf` (build Steam affiché). Choix manuel possible.
 2. **Récupère EML automatiquement** : consulte la dernière release officielle et télécharge `emm.exe` dans le profil utilisateur avec contrôle SHA-256. Si GitHub est inaccessible, un `emm.exe` local peut être sélectionné. Les archives Nexus sont détectées dans Téléchargements, Bureau, le dossier de l'installateur et celui du jeu, par leur contenu : principale (`mods/ShroudInFrench/mod.json`), PNJ (`n*.fqoa`) et Intro VF (`mods/ShroudInFrenchIntro/mod.json`).
 3. **Installer / mettre à jour** : n'extrait que les fichiers présents dans les dossiers ShroudInFrench gérés par le mod (sans `..` ni chemin absolu), puis lance **`emm.exe run -p -f -g <jeu>`** ([EML](https://github.com/Brabb3l/kfc-parser), GPL-3.0) pour reconstruire le patch avec tous les mods EML présents (jeu fermé). Les cases PNJ et Intro VF activent ou retirent ces compléments indépendamment.
-4. **Désinstaller** : retire `mods\\ShroudInFrench` et `mods\\ShroudInFrenchIntro`. S’il reste d’autres mods EML, force leur réapplication avec `emm.exe run -p -f -g <jeu>` et conserve leurs fichiers de données ainsi que le cache. Sans autre mod EML, restaure l’original avec `emm.exe restore -g <jeu>` et nettoie les fichiers appartenant à une installation récente et identifiée. Refuse toute opération si la sauvegarde d’origine est absente ou périmée.
+4. **Désinstaller** : retire `mods\\ShroudInFrench` (et l'ancien dossier `mods\\ShroudInFrenchIntro` s'il existe). S’il reste d’autres mods EML, force leur réapplication avec `emm.exe run -p -f -g <jeu>` et conserve leurs fichiers de données ainsi que le cache. Sans autre mod EML, restaure l’original avec `emm.exe restore -g <jeu>` et nettoie les fichiers appartenant à une installation récente et identifiée. Refuse toute opération si la sauvegarde d’origine est absente ou périmée.
 
 **Ce qu'il ne fait pas** : aucune télémétrie, aucun droit administrateur, aucune modification des réglages Windows ni des sauvegardes de parties. Au démarrage, il consulte la dernière release officielle d'EML sur GitHub et télécharge `emm.exe` si nécessaire, dans le profil utilisateur avec vérification SHA-256 ; en cas d'absence de réseau, un `emm.exe` local reste utilisable. Il ne copie aucun fichier EML dans le dossier du jeu. Il lance `tasklist` et `emm.exe`.
 
 ## Installation sans l'installateur / Without the installer
 
-Fermez le jeu, décompressez les archives téléchargées dans le dossier du jeu (principal et PNJ : `mods\ShroudInFrench\`; intro : `mods\ShroudInFrenchIntro\`), puis `emm.exe run -p -f -g "<dossier du jeu>"` (ou copiez `dbghelp.dll` d'EML à côté de `enshrouded.exe` et lancez le jeu). Pour retirer seulement un complément, supprimez son dossier et relancez cette commande. Pour tout désinstaller, supprimez les deux dossiers du mod ; s'il reste d'autres mods EML, reconstruisez le patch avec la commande `run`, sinon `emm.exe restore -g "<dossier du jeu>"`. Détail : [`docs/LISEZMOI_principal.txt`](docs/LISEZMOI_principal.txt). La notice du complément Intro est dans [`docs/LISEZMOI_intro.txt`](docs/LISEZMOI_intro.txt).
+Fermez le jeu, décompressez les archives téléchargées dans le dossier du jeu (principal et PNJ : `mods\ShroudInFrench\`; depuis la 2.3.0 l'intro est dans le fichier principal et il n'y a plus de dossier Intro séparé), puis `emm.exe run -p -f -g "<dossier du jeu>"` (ou copiez `dbghelp.dll` d'EML à côté de `enshrouded.exe` et lancez le jeu). Pour retirer seulement les PNJ, supprimez les fichiers `n*.fqoa` de `mods\ShroudInFrench` et relancez cette commande. Pour tout désinstaller, supprimez `mods\ShroudInFrench` (et l'ancien `mods\ShroudInFrenchIntro` s'il existe) ; s'il reste d'autres mods EML, reconstruisez le patch avec la commande `run`, sinon `emm.exe restore -g "<dossier du jeu>"`. Détail : [`docs/LISEZMOI_principal.txt`](docs/LISEZMOI_principal.txt).
 
 ## Compiler / Build
 
@@ -44,7 +44,6 @@ Le script fait deux choses :
 
 - [`docs/LISEZMOI_principal.txt`](docs/LISEZMOI_principal.txt) — notice du fichier principal (installation avec EML, désinstallation, limites).
 - [`docs/LISEZMOI_PNJ.txt`](docs/LISEZMOI_PNJ.txt) — notice du fichier optionnel « répliques des personnages ».
-- [`docs/LISEZMOI_intro.txt`](docs/LISEZMOI_intro.txt) — notice d’installation/désinstallation du complément optionnel « Intro VF », indépendant du journal et des PNJ.
 - [`docs/shroudinfrench_presentation.mp4`](docs/shroudinfrench_presentation.mp4) — vidéo de présentation (1 min 33) : Forgeron, Barbier et Alden en VF puis en VO.
 - [`docs/banniere_shroudinfrench_1300x372.png`](docs/banniere_shroudinfrench_1300x372.png) — bannière du mod.
 
